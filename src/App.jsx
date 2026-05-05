@@ -1,11 +1,21 @@
+import PrintLaporan from './pages/PrintLaporan';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
 import SiswaDashboard from './pages/SiswaDashboard';
+import RegisterPage from './pages/RegisterPage'; // <--- Import Halaman Pendaftaran Baru
 
 export default function App() {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem('user')) || null);
+  // Mengambil data user dari memory browser dengan aman
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      return savedUser ? JSON.parse(savedUser) : null;
+    } catch (error) {
+      return null;
+    }
+  });
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -14,7 +24,8 @@ export default function App() {
 
   const handleLogout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    // Menggunakan clear untuk memastikan semua memori nyangkut terhapus saat logout
+    localStorage.clear(); 
   };
 
   return (
@@ -23,23 +34,46 @@ export default function App() {
         {/* Halaman Login */}
         <Route 
           path="/login" 
-          element={!user ? <LoginPage onLogin={handleLogin} /> : <Navigate to={user.role === 'admin' ? '/admin' : '/siswa'} />} 
+          element={
+            !user ? (
+              <LoginPage onLogin={handleLogin} />
+            ) : user.role === 'admin' ? (
+              <Navigate to="/admin" replace />
+            ) : (
+              <Navigate to="/siswa" replace />
+            )
+          } 
         />
 
+        {/* Rute Baru PPDB (Pendaftaran Siswa Baru) */}
+        <Route path="/register" element={<RegisterPage />} />
+        {/* Rute Khusus Cetak Laporan Keuangan */}
+        <Route path="/print-laporan" element={<PrintLaporan />} />
         {/* Route Khusus Admin */}
         <Route 
           path="/admin/*" 
-          element={user?.role === 'admin' ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          element={user?.role === 'admin' ? <AdminDashboard onLogout={handleLogout} /> : <Navigate to="/login" replace />} 
         />
 
-        {/* Route Khusus Siswa */}
+        {/* Route Khusus Siswa dan Orang Tua (Memakai Dashboard yang sama, dibedakan dengan prop isOrangTua) */}
         <Route 
           path="/siswa/*" 
-          element={user?.role === 'siswa' ? <SiswaDashboard onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          element={(user?.role === 'siswa' || user?.role === 'ortu') ? <SiswaDashboard onLogout={handleLogout} isOrangTua={user?.role === 'ortu'} /> : <Navigate to="/login" replace />} 
+        />
+        
+        {/* Alias Rute jika kebetulan mengetik /ortu di URL */}
+        <Route 
+          path="/ortu/*" 
+          element={user?.role === 'ortu' ? <Navigate to="/siswa" replace /> : <Navigate to="/login" replace />} 
         />
 
-        {/* Redirect awal */}
-        <Route path="/" element={<Navigate to="/login" />} />
+        {/* Redirect awal saat web pertama kali dibuka */}
+        <Route 
+          path="/" 
+          element={
+            <Navigate to={user?.role === 'admin' ? "/admin" : (user?.role === 'siswa' || user?.role === 'ortu') ? "/siswa" : "/login"} replace />
+          } 
+        />
       </Routes>
     </Router>
   );

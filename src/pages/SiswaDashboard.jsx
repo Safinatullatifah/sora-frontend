@@ -1,19 +1,36 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
+import axios from 'axios'; 
 import { 
   User, CreditCard, LogOut, LayoutDashboard, Bell, 
   CheckCircle2, Clock, Megaphone, FileText, ChevronRight, 
   AlertCircle, UploadCloud, ShieldAlert, CheckCircle, X,
   Wallet, QrCode, Building, Camera, KeyRound, Lock, Eye, EyeOff,
-  AlertTriangle, MailCheck
+  AlertTriangle, MailCheck, Layers
 } from 'lucide-react';
 
-export default function SiswaDashboard({ onLogout }) {
+export default function SiswaDashboard({ onLogout, isOrangTua = false }) {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showNotif, setShowNotif] = useState(false);
   
-  // --- STATE DATA SISWA (DIPERLENGKAP) ---
+  // --- STATE BARU UNTUK MODAL PAKET SPP ---
+  const [isModalPaketOpen, setIsModalPaketOpen] = useState(false);
+  
+  // --- INJEKSI SCRIPT MIDTRANS OTOMATIS (ANTI-ERROR) ---
+  useEffect(() => {
+    const scriptId = 'midtrans-script';
+    if (!document.getElementById(scriptId)) {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+      script.setAttribute("data-client-key", "SB-Mid-client-Ecm_Qy3M-nD2gGGQ"); 
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // --- STATE DATA SISWA ---
   const [profil, setProfil] = useState({
-    nama: 'Fina Khoirunnisa',
+    nama: 'Safinatul Latifah',
     nisn: '005123',
     kelas: 'XI RPL 1',
     jenisKelamin: 'Perempuan',
@@ -34,7 +51,7 @@ export default function SiswaDashboard({ onLogout }) {
   // --- STATE PASSWORD ---
   const [passForm, setPassForm] = useState({ old: '', new: '', confirm: '' });
   const [showPass, setShowPass] = useState(false);
-  const [passResetStep, setPassResetStep] = useState(1); // 1: Form, 2: Email Terkirim
+  const [passResetStep, setPassResetStep] = useState(1); 
 
   // --- STATE TAGIHAN ---
   const [kategoriAktif, setKategoriAktif] = useState('Semua');
@@ -43,6 +60,7 @@ export default function SiswaDashboard({ onLogout }) {
     { id: 'INV-0426-02', nama: 'Uang Buku Paket PBO', kategori: 'Buku', nominal: 150000, status: 'Belum Bayar', tglBatas: '25 Apr 2026' },
     { id: 'INV-0426-03', nama: 'Seragam Olahraga', kategori: 'Seragam', nominal: 350000, status: 'Belum Bayar', tglBatas: '30 Apr 2026' },
     { id: 'INV-0326-01', nama: 'SPP Maret 2026', kategori: 'SPP', nominal: 250000, status: 'Lunas', tglBatas: '20 Mar 2026' },
+    { id: 'INV-0226-01', nama: 'SPP Februari 2026', kategori: 'SPP', nominal: 250000, status: 'Belum Bayar', tglBatas: '20 Feb 2026' },
     { id: 'INV-0725-01', nama: 'Daftar Ulang Ganjil', kategori: 'Daftar Ulang', nominal: 1250000, status: 'Lunas', tglBatas: '15 Jul 2025' },
   ]);
 
@@ -51,12 +69,6 @@ export default function SiswaDashboard({ onLogout }) {
     { id: 1, tanggal: '15 Apr 2026', judul: 'Pemberitahuan Libur Hari Raya Idul Fitri', file: 'Surat_Edaran_Libur.pdf', pesan: 'Diberitahukan kepada seluruh siswa bahwa libur akan dimulai pada tanggal 18 April 2026.' },
     { id: 2, tanggal: '10 Apr 2026', judul: 'Batas Akhir Pembayaran SPP', file: null, pesan: 'Mohon segera melunasi SPP bulan April sebelum ujian tengah semester dimulai.' }
   ]);
-
-  // --- STATE PAYMENT MODAL ---
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [selectedTagihan, setSelectedTagihan] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
 
   // --- HANDLERS ---
   const handleUpdateProfil = () => {
@@ -69,34 +81,95 @@ export default function SiswaDashboard({ onLogout }) {
     if (file) {
       const url = URL.createObjectURL(file);
       setTempProfil({ ...tempProfil, fotoUrl: url });
-      setProfil({ ...profil, fotoUrl: url }); // Langsung ubah foto sidebar
+      setProfil({ ...profil, fotoUrl: url }); 
     }
   };
 
   const handleUbahPassword = () => {
     if (!passForm.old || !passForm.new || !passForm.confirm) return alert("Lengkapi form password!");
     if (passForm.new !== passForm.confirm) return alert("Password baru dan konfirmasi tidak cocok!");
-    
-    // Pindah ke step konfirmasi email
     setPassResetStep(2);
   };
 
-  const handlePay = (item) => {
-    setSelectedTagihan(item);
-    setIsPaymentOpen(true);
+  // --- LOGIKA PEMBAYARAN MIDTRANS SATUAN ---
+  const handlePay = async (item) => {
+    const btn = document.activeElement;
+    const originalText = btn.innerText;
+    try {
+      btn.innerText = "PROSES..."; btn.disabled = true;
+
+      const response = await axios.post(`http://localhost:3000/api/invoices/${item.id}/pay`, { nominal: item.nominal });
+      const snapToken = response.data.token || response.data.snap_token;
+
+      btn.innerText = originalText; btn.disabled = false;
+
+      if (!snapToken) {
+        return alert("Backend belum siap mengirimkan Token Midtrans. Cek file routes kamu ya!");
+      }
+
+      if (window.snap) {
+        window.snap.pay(snapToken, {
+          onSuccess: function(){
+            alert("Yay! Pembayaran Sukses!");
+            setTagihan(tagihan.map(t => t.id === item.id ? { ...t, status: 'Lunas' } : t));
+          },
+          onPending: function(){
+            alert("Sip, silakan selesaikan pembayaranmu di ATM/Aplikasi.");
+            setTagihan(tagihan.map(t => t.id === item.id ? { ...t, status: 'Menunggu Konfirmasi' } : t));
+          }
+        });
+      } else {
+        alert("Midtrans masih loading, coba refresh (F5).");
+      }
+    } catch (error) {
+      console.error("Midtrans Error:", error);
+      btn.innerText = originalText; btn.disabled = false;
+      alert("Gagal memanggil Backend.");
+    }
   };
 
-  const processPayment = () => {
-    if(!paymentMethod) return alert("Pilih metode pembayaran terlebih dahulu!");
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      setTagihan(tagihan.map(t => t.id === selectedTagihan.id ? { ...t, status: 'Menunggu Konfirmasi' } : t));
-      setIsPaymentOpen(false);
-      setSelectedTagihan(null);
-      setPaymentMethod('');
-      alert("Pembayaran berhasil disimulasikan! Status menjadi 'Menunggu Konfirmasi Admin'.");
-    }, 2000);
+  // --- LOGIKA PEMBAYARAN MIDTRANS PAKET (MULTIPLE BULAN) ---
+  const handlePayPaket = async (namaPaket, jumlahBulan) => {
+    setIsModalPaketOpen(false); // Tutup modal dulu biar lega
+    const nominalTotal = 250000 * jumlahBulan; // Rp 250.000 x jumlah bulan
+    const paketId = `PKT-${Date.now()}`; // Bikin ID unik untuk paket ini
+
+    try {
+      const response = await axios.post(`http://localhost:3000/api/invoices/${paketId}/pay`, { nominal: nominalTotal });
+      const snapToken = response.data.token || response.data.snap_token;
+
+      if (window.snap) {
+        window.snap.pay(snapToken, {
+          onSuccess: () => { 
+            alert(`Luar Biasa! Pembayaran ${namaPaket} Berhasil!`); 
+            // Ubah tagihan SPP jadi lunas sebagai simulasi
+            setTagihan(tagihan.map(t => t.kategori === 'SPP' ? { ...t, status: 'Lunas' } : t)); 
+          },
+          onPending: () => {
+            alert(`Silakan lanjutkan pembayaran ${namaPaket} Anda.`);
+          }
+        });
+      }
+    } catch (error) {
+      alert("Gagal memanggil Backend untuk fitur Paket SPP.");
+    }
+  };
+
+  // --- LOGIKA CETAK STRUK PEMBAYARAN ---
+  const handleCetakStruk = (item) => {
+    const dataStruk = {
+      namaSiswa: profil.nama,
+      nisn: profil.nisn,
+      kelas: profil.kelas,
+      namaTagihan: item.nama,
+      kategori: item.kategori,
+      nominal: item.nominal,
+      tanggal: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
+    };
+    // Lempar data ke jembatan memori
+    localStorage.setItem('printStrukData', JSON.stringify(dataStruk));
+    // Buka tab baru
+    window.open('/print-struk', '_blank');
   };
 
   // --- CALCULATIONS & FILTERS ---
@@ -109,10 +182,14 @@ export default function SiswaDashboard({ onLogout }) {
     return tagihan.filter(t => t.kategori === kategoriAktif);
   }, [tagihan, kategoriAktif]);
 
-  // Cek apakah ada tagihan yang mendekati deadline (Simulasi: SPP April)
   const tagihanMendesak = useMemo(() => {
     return tagihan.find(t => t.status === 'Belum Bayar' && t.tglBatas === '20 Apr 2026');
   }, [tagihan]);
+
+  const totalBulanNunggak = useMemo(() => {
+    return tagihan.filter(t => t.status === 'Belum Bayar' && t.kategori === 'SPP').length;
+  }, [tagihan]);
+  const isBlokirUjian = totalBulanNunggak >= 3;
 
   // --- CLOSE NOTIF OUTSIDE CLICK ---
   const notifRef = useRef();
@@ -135,7 +212,7 @@ export default function SiswaDashboard({ onLogout }) {
           <div className="w-12 h-12 bg-sora-blue rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-sora-blue/20">S</div>
           <div>
             <h1 className="text-2xl font-black text-sora-navy tracking-tighter">SORA</h1>
-            <p className="text-[10px] text-sora-blue font-black uppercase tracking-widest">Portal Siswa</p>
+            <p className="text-[10px] text-sora-blue font-black uppercase tracking-widest">{isOrangTua ? 'Portal Orang Tua' : 'Portal Siswa'}</p>
           </div>
         </div>
         <div className="p-6 pb-2">
@@ -152,7 +229,9 @@ export default function SiswaDashboard({ onLogout }) {
         <nav className="flex-1 p-6 space-y-2 pt-4">
           <MenuBtn icon={<LayoutDashboard size={20}/>} label="Dashboard" active={activeMenu === 'dashboard'} onClick={() => setActiveMenu('dashboard')} />
           <MenuBtn icon={<CreditCard size={20}/>} label="Keuangan & Tagihan" active={activeMenu === 'tagihan'} onClick={() => setActiveMenu('tagihan')} />
-          <MenuBtn icon={<User size={20}/>} label="Pengaturan Akun" active={activeMenu === 'profil'} onClick={() => setActiveMenu('profil')} />
+          {!isOrangTua && (
+            <MenuBtn icon={<User size={20}/>} label="Pengaturan Akun" active={activeMenu === 'profil'} onClick={() => setActiveMenu('profil')} />
+          )}
         </nav>
         <div className="p-6">
           <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 py-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-red-100">
@@ -169,7 +248,6 @@ export default function SiswaDashboard({ onLogout }) {
             <p className="text-[10px] text-sora-gray font-bold tracking-[0.2em]">16 April 2026 • Tahun Ajaran 2025/2026</p>
           </div>
           <div className="flex gap-4 items-center" ref={notifRef}>
-            {/* NOTIFIKASI DROPDOWN */}
             <div className="relative">
               <button onClick={() => setShowNotif(!showNotif)} className={`relative p-3 rounded-2xl transition-all ${showNotif ? 'bg-sora-blue text-white' : 'bg-gray-50 text-sora-navy hover:bg-sora-blue hover:text-white'}`}>
                 <Bell size={20}/>
@@ -202,13 +280,23 @@ export default function SiswaDashboard({ onLogout }) {
 
         <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
           
+          {isBlokirUjian && (
+            <div className="bg-red-600 text-white p-6 rounded-[2.5rem] flex flex-col md:flex-row items-start md:items-center gap-5 shadow-xl shadow-red-600/20 mb-8 animate-in slide-in-from-top-4">
+              <div className="bg-white/20 p-4 rounded-2xl shrink-0"><ShieldAlert size={36} /></div>
+              <div className="flex-1">
+                <h4 className="font-black text-lg uppercase tracking-widest">Akses Ujian Diblokir!</h4>
+                <p className="text-sm font-medium mt-1 leading-relaxed text-white/90">Sistem mendeteksi tunggakan SPP sebanyak <strong>{totalBulanNunggak} bulan</strong>. Kartu Ujian (UTS/UAS) tidak dapat diakses. Harap segera melunasi tagihan atau hubungi Tata Usaha.</p>
+              </div>
+              <button onClick={() => setActiveMenu('tagihan')} className="w-full md:w-auto bg-white text-red-600 px-6 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-md whitespace-nowrap">Lihat Tagihan</button>
+            </div>
+          )}
+
           {/* 1. DASHBOARD OVERVIEW */}
           {activeMenu === 'dashboard' && (
             <div className="space-y-8 animate-in fade-in duration-500">
               
-              {/* BANNER DEADLINE (Jika ada) */}
               {tagihanMendesak && (
-                <div className="bg-red-50 border border-red-200 p-5 rounded-[2rem] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm animate-in slide-in-from-top-4">
+                <div className="bg-red-50 border border-red-200 p-5 rounded-[2rem] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
                   <div className="flex items-center gap-4">
                     <div className="bg-red-500 text-white p-3 rounded-xl shadow-lg shadow-red-500/30 animate-bounce"><AlertTriangle size={24}/></div>
                     <div>
@@ -235,7 +323,7 @@ export default function SiswaDashboard({ onLogout }) {
                   <div className="flex items-center gap-4">
                     {profil.statusVerifikasi === 'Verified' ? (
                       <><div className="bg-sora-green/10 p-4 rounded-2xl text-sora-green"><CheckCircle2 size={32}/></div>
-                      <div><h4 className="text-xl font-black text-sora-navy">Terverifikasi</h4><p className="text-xs text-sora-gray font-bold">Data Anda valid. <button onClick={()=>setActiveMenu('profil')} className="text-sora-blue hover:underline">Lihat Profil</button></p></div></>
+                      <div><h4 className="text-xl font-black text-sora-navy">Terverifikasi</h4><p className="text-xs text-sora-gray font-bold">Data Anda valid. {!isOrangTua && <button onClick={()=>setActiveMenu('profil')} className="text-sora-blue hover:underline">Lihat Profil</button>}</p></div></>
                     ) : (
                       <><div className="bg-orange-100 p-4 rounded-2xl text-orange-500 animate-pulse"><Clock size={32}/></div>
                       <div><h4 className="text-xl font-black text-sora-navy">Menunggu Review</h4><p className="text-xs text-sora-gray font-bold">Admin sedang mengecek data Anda.</p></div></>
@@ -270,7 +358,7 @@ export default function SiswaDashboard({ onLogout }) {
             </div>
           )}
 
-          {/* 2. KEUANGAN & TAGIHAN (TABEL & KATEGORI) */}
+          {/* 2. KEUANGAN & TAGIHAN */}
           {activeMenu === 'tagihan' && (
             <div className="space-y-6 animate-in fade-in duration-500 max-w-5xl mx-auto">
               
@@ -279,13 +367,20 @@ export default function SiswaDashboard({ onLogout }) {
                   <h3 className="text-2xl font-black text-sora-navy tracking-tight">Rincian Keuangan</h3>
                   <p className="text-xs font-bold text-gray-400 mt-1">Pantau dan bayar tagihan sekolah Anda di sini.</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-sora-gray uppercase tracking-widest">Total Tunggakan</p>
-                  <p className="text-2xl font-black text-red-500">Rp {totalNunggak.toLocaleString('id-ID')}</p>
+                
+                {/* --- TOMBOL PEMICU MODAL PAKET --- */}
+                <div className="flex items-center gap-4 text-right">
+                  <button onClick={() => setIsModalPaketOpen(true)} className="bg-sora-navy text-white px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue transition-all shadow-lg flex items-center gap-2">
+                    <Layers size={14}/> Bayar Paket SPP
+                  </button>
+                  <div className="hidden md:block w-px h-10 bg-gray-200"></div>
+                  <div>
+                    <p className="text-[10px] font-black text-sora-gray uppercase tracking-widest">Total Tunggakan</p>
+                    <p className="text-2xl font-black text-red-500">Rp {totalNunggak.toLocaleString('id-ID')}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* TABS KATEGORI */}
               <div className="flex overflow-x-auto gap-2 bg-white p-2 rounded-2xl border shadow-sm custom-scrollbar">
                 {['Semua', 'SPP', 'Daftar Ulang', 'Buku', 'Seragam'].map(kat => (
                   <button key={kat} onClick={() => setKategoriAktif(kat)} className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${kategoriAktif === kat ? 'bg-sora-navy text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-50 hover:text-sora-navy'}`}>
@@ -294,7 +389,6 @@ export default function SiswaDashboard({ onLogout }) {
                 ))}
               </div>
 
-              {/* TABEL TAGIHAN */}
               <div className="bg-white rounded-[2rem] border shadow-sm overflow-hidden">
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-gray-50 text-[10px] font-black text-sora-gray uppercase tracking-widest border-b">
@@ -322,7 +416,7 @@ export default function SiswaDashboard({ onLogout }) {
                           {t.status === 'Belum Bayar' ? (
                             <button onClick={() => handlePay(t)} className="bg-sora-blue text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-md shadow-sora-blue/20">Bayar</button>
                           ) : t.status === 'Lunas' ? (
-                            <button className="bg-white border border-gray-200 text-sora-navy px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sora-blue transition-all flex items-center justify-center gap-2 mx-auto"><FileText size={12}/> Struk</button>
+                            <button onClick={() => handleCetakStruk(t)} className="bg-white border border-gray-200 text-sora-navy px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sora-blue transition-all flex items-center justify-center gap-2 mx-auto"><FileText size={12}/> Struk</button>
                           ) : (
                             <span className="text-[10px] text-gray-400 font-bold italic">Diproses...</span>
                           )}
@@ -335,11 +429,10 @@ export default function SiswaDashboard({ onLogout }) {
             </div>
           )}
 
-          {/* 3. PENGATURAN AKUN (BIODATA LENGKAP & PASSWORD) */}
-          {activeMenu === 'profil' && (
+          {/* 3. PENGATURAN AKUN */}
+          {activeMenu === 'profil' && !isOrangTua && (
             <div className="max-w-5xl mx-auto animate-in fade-in duration-500 grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* KOLOM KIRI: FOTO PROFIL & STATUS */}
               <div className="lg:col-span-1 space-y-6">
                 <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm text-center flex flex-col items-center">
                   <div className="relative group mb-4">
@@ -350,7 +443,6 @@ export default function SiswaDashboard({ onLogout }) {
                         <User size={48} className="text-gray-300"/>
                       )}
                     </div>
-                    {/* Upload Overlay */}
                     <label className="absolute inset-0 bg-sora-navy/60 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-all backdrop-blur-sm">
                       <Camera size={24} className="mb-1"/>
                       <span className="text-[9px] font-black uppercase tracking-widest">Ubah Foto</span>
@@ -369,7 +461,6 @@ export default function SiswaDashboard({ onLogout }) {
                   </div>
                 </div>
 
-                {/* FORM GANTI PASSWORD DENGAN EMAIL VERIFICATION */}
                 <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm relative overflow-hidden h-fit transition-all duration-300">
                   {passResetStep === 1 ? (
                     <div className="animate-in fade-in slide-in-from-right-4">
@@ -407,7 +498,6 @@ export default function SiswaDashboard({ onLogout }) {
                 </div>
               </div>
 
-              {/* KOLOM KANAN: FORM BIODATA LENGKAP STANDAR DIKNAS */}
               <div className="lg:col-span-2 bg-white p-8 md:p-10 rounded-[3rem] border shadow-sm h-fit">
                 <div className="mb-8 border-b pb-6">
                   <h3 className="text-2xl font-black text-sora-navy tracking-tight">Biodata Lengkap Siswa</h3>
@@ -415,7 +505,6 @@ export default function SiswaDashboard({ onLogout }) {
                 </div>
 
                 <div className="space-y-6">
-                  {/* Data Permanen */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-2xl border border-gray-100">
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">NISN (Permanen)</label>
@@ -427,7 +516,6 @@ export default function SiswaDashboard({ onLogout }) {
                     </div>
                   </div>
 
-                  {/* Data Pribadi */}
                   <h4 className="text-[10px] font-black text-sora-blue uppercase tracking-[0.2em] border-b pb-2 mt-8">I. Data Pribadi</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="md:col-span-2">
@@ -456,7 +544,6 @@ export default function SiswaDashboard({ onLogout }) {
                     </div>
                   </div>
 
-                  {/* Data Orang Tua / Sekolah Asal */}
                   <h4 className="text-[10px] font-black text-sora-blue uppercase tracking-[0.2em] border-b pb-2 mt-8">II. Data Pendukung</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -501,69 +588,64 @@ export default function SiswaDashboard({ onLogout }) {
         </div>
       </main>
 
-      {/* ================= MODAL PAYMENT GATEWAY (SIMULASI) ================= */}
-      {isPaymentOpen && selectedTagihan && (
+      {/* ================= MODAL BAYAR PAKET SPP ================= */}
+      {isModalPaketOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-sora-navy/80 backdrop-blur-sm" onClick={() => !isProcessing && setIsPaymentOpen(false)}></div>
-          <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl z-[110] overflow-hidden animate-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-            
-            <div className="bg-sora-navy p-8 text-white relative">
-              <button onClick={() => !isProcessing && setIsPaymentOpen(false)} className="absolute top-6 right-6 text-white/50 hover:text-white"><X size={20}/></button>
-              <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">Total Pembayaran</p>
-              <h2 className="text-3xl font-black mb-2">Rp {selectedTagihan.nominal.toLocaleString('id-ID')}</h2>
-              <p className="text-xs font-bold text-sora-cyan truncate">{selectedTagihan.nama}</p>
+          <div className="absolute inset-0 bg-sora-navy/60 backdrop-blur-sm" onClick={() => setIsModalPaketOpen(false)}></div>
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl z-[110] p-10 animate-in zoom-in duration-300">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
+              <div>
+                <h3 className="text-2xl font-black text-sora-navy">Paket Pelunasan SPP</h3>
+                <p className="text-[10px] font-bold text-sora-gray uppercase tracking-widest mt-1">Bayar Praktis, Bebas Denda</p>
+              </div>
+              <button onClick={() => setIsModalPaketOpen(false)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all"><X size={24}/></button>
             </div>
 
-            <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
-              <p className="text-[10px] font-black text-sora-gray uppercase tracking-widest mb-4">Pilih Metode Pembayaran</p>
-              
-              <div className="space-y-3 mb-8">
-                <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${paymentMethod === 'VA' ? 'border-sora-blue bg-sora-blue/5' : 'border-gray-100 hover:border-gray-200'}`}>
-                  <input type="radio" name="payment" className="hidden" onChange={() => setPaymentMethod('VA')} />
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${paymentMethod === 'VA' ? 'bg-sora-blue text-white' : 'bg-gray-100 text-gray-500'}`}><Building size={18}/></div>
-                  <div className="flex-1"><p className="text-xs font-black text-sora-navy">Virtual Account Bank</p><p className="text-[9px] font-bold text-gray-400 mt-1">BCA, Mandiri, BNI, BRI</p></div>
-                </label>
-
-                <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${paymentMethod === 'QRIS' ? 'border-sora-blue bg-sora-blue/5' : 'border-gray-100 hover:border-gray-200'}`}>
-                  <input type="radio" name="payment" className="hidden" onChange={() => setPaymentMethod('QRIS')} />
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${paymentMethod === 'QRIS' ? 'bg-sora-blue text-white' : 'bg-gray-100 text-gray-500'}`}><QrCode size={18}/></div>
-                  <div className="flex-1"><p className="text-xs font-black text-sora-navy">QRIS / E-Wallet</p><p className="text-[9px] font-bold text-gray-400 mt-1">Gopay, OVO, Dana, ShopeePay</p></div>
-                </label>
-
-                <label className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${paymentMethod === 'Manual' ? 'border-sora-blue bg-sora-blue/5' : 'border-gray-100 hover:border-gray-200'}`}>
-                  <input type="radio" name="payment" className="hidden" onChange={() => setPaymentMethod('Manual')} />
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${paymentMethod === 'Manual' ? 'bg-sora-blue text-white' : 'bg-gray-100 text-gray-500'}`}><UploadCloud size={18}/></div>
-                  <div className="flex-1"><p className="text-xs font-black text-sora-navy">Upload Bukti Transfer</p><p className="text-[9px] font-bold text-gray-400 mt-1">Verifikasi manual oleh Admin</p></div>
-                </label>
+            <div className="space-y-4">
+              {/* Paket 1 Semester */}
+              <div className="border border-gray-200 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center hover:border-sora-blue transition-all group">
+                <div className="mb-3 md:mb-0">
+                  <p className="font-black text-sora-navy group-hover:text-sora-blue transition-colors">1 Semester (6 Bulan)</p>
+                  <p className="text-xs text-gray-500 font-bold">6 x Rp 250.000</p>
+                </div>
+                <div className="text-left md:text-right w-full md:w-auto">
+                  <p className="font-black text-sora-blue mb-2 text-lg">Rp 1.500.000</p>
+                  <button onClick={() => handlePayPaket('1 Semester', 6)} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
+                </div>
               </div>
 
-              {paymentMethod === 'Manual' && (
-                <div className="mb-8 animate-in fade-in slide-in-from-top-2">
-                  <label className="flex flex-col items-center justify-center gap-2 w-full py-6 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 hover:bg-sora-bg hover:border-sora-blue cursor-pointer transition-all group">
-                    <UploadCloud size={24} className="text-gray-400 group-hover:text-sora-blue transition-colors"/>
-                    <p className="text-[10px] font-black text-sora-navy uppercase tracking-widest mt-1">Pilih File Struk / Foto</p>
-                    <input type="file" className="hidden"/>
-                  </label>
+              {/* Paket 1 Tahun */}
+              <div className="border border-gray-200 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center hover:border-sora-blue transition-all group">
+                <div className="mb-3 md:mb-0">
+                  <p className="font-black text-sora-navy group-hover:text-sora-blue transition-colors">1 Tahun (12 Bulan)</p>
+                  <p className="text-xs text-gray-500 font-bold">12 x Rp 250.000</p>
                 </div>
-              )}
+                <div className="text-left md:text-right w-full md:w-auto">
+                  <p className="font-black text-sora-blue mb-2 text-lg">Rp 3.000.000</p>
+                  <button onClick={() => handlePayPaket('1 Tahun', 12)} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
+                </div>
+              </div>
 
-              <button 
-                onClick={processPayment}
-                disabled={!paymentMethod || isProcessing}
-                className="w-full bg-sora-navy text-white py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-sora-blue transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-sora-navy/20"
-              >
-                {isProcessing ? 'Memproses...' : 'Selesaikan Pembayaran'}
-              </button>
+              {/* Paket Sampai Lulus */}
+              <div className="border border-sora-green bg-sora-green/5 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-sora-green text-white text-[8px] font-black px-3 py-1 rounded-bl-lg uppercase tracking-widest">Paling Hemat</div>
+                <div className="mb-3 md:mb-0 mt-2 md:mt-0">
+                  <p className="font-black text-sora-green">Lunas Sampai Lulus</p>
+                  <p className="text-xs text-gray-500 font-bold">36 Bulan Pembelajaran</p>
+                </div>
+                <div className="text-left md:text-right w-full md:w-auto">
+                  <p className="font-black text-sora-green mb-2 text-lg">Rp 9.000.000</p>
+                  <button onClick={() => handlePayPaket('Lunas Sampai Lulus', 36)} className="w-full md:w-auto bg-sora-green text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all">Pilih Paket</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }
 
-// Komponen Pembantu Menu Sidebar
 function MenuBtn({ icon, label, active, onClick }) {
   return (
     <button onClick={onClick} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all font-bold text-sm ${active ? 'bg-sora-blue shadow-lg shadow-sora-blue/20 text-white' : 'text-gray-400 hover:text-sora-navy hover:bg-gray-50'}`}>

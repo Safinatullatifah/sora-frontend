@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // <--- Tambahan untuk pindah halaman
 import { 
-  LogIn, Lock, User, Mail, ArrowLeft, 
-  Eye, EyeOff, Send, CheckCircle2 
+  LogIn, Lock, User, ArrowLeft, 
+  Eye, EyeOff, CheckCircle2 
 } from 'lucide-react';
 
 export default function LoginPage({ onLogin }) {
+  const navigate = useNavigate(); // <--- Inisialisasi navigasi
   const [isForgot, setIsForgot] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Efek untuk mematikan scroll di seluruh halaman login
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -20,26 +23,44 @@ export default function LoginPage({ onLogin }) {
     };
   }, []);
 
-  const handleSubmit = (e) => {
+ const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // LOGIKA PINTU RAHASIA ADMIN
-    // Jika username mengandung kata 'admin' atau keyword tertentu, login sebagai admin
-    // Selain itu, otomatis login sebagai siswa
-    let role = 'siswa';
-    if (username.toLowerCase().includes('admin') || username === 'fina_sora') {
-      role = 'admin';
-    }
+    if (!username || !password) return alert("Masukkan email dan password!");
 
-    if (username && password) {
-      onLogin({ role, name: username, username });
-    } else {
-      alert("Masukkan username dan password!");
+    setIsLoading(true);
+    localStorage.clear();
+
+    try {
+      const response = await axios.post('/api/auth/login', { 
+        email: username, 
+        password: password 
+      });
+
+      const user = response.data.user || response.data.data || response.data;
+      
+      let finalRole = 'siswa';
+      if (username.toLowerCase().includes('admin')) {
+        finalRole = 'admin';
+      } else if (username.toLowerCase().includes('ortu')) {
+        finalRole = 'ortu'; // <--- Tambahan deteksi ortu dari email
+      } else {
+        finalRole = user.role?.toLowerCase() === 'admin' ? 'admin' : 'siswa';
+      }
+
+      onLogin({ 
+        role: finalRole, 
+        name: user.nama_lengkap || user.name || "User SORA", 
+        username: username 
+      });
+
+    } catch (error) {
+      alert("Login gagal! Pastikan email benar.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    // Tambahkan h-screen dan overflow-hidden di container utama
     <div className="h-screen w-screen bg-sora-bg flex items-center justify-center p-6 font-sans overflow-hidden">
       <div className="max-w-[1000px] w-full h-[600px] grid grid-cols-1 lg:grid-cols-2 bg-white rounded-[3rem] shadow-2xl shadow-sora-blue/10 overflow-hidden border border-gray-100">
         
@@ -79,7 +100,7 @@ export default function LoginPage({ onLogin }) {
 
               <form onSubmit={handleSubmit} className="space-y-5 text-left">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Username / NISN</label>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email / Username</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input 
@@ -88,7 +109,7 @@ export default function LoginPage({ onLogin }) {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all font-medium text-sm" 
-                      placeholder="Masukkan username..." 
+                      placeholder="contoh: admin@sora.com" 
                     />
                   </div>
                 </div>
@@ -127,14 +148,27 @@ export default function LoginPage({ onLogin }) {
 
                 <button 
                   type="submit"
-                  className="w-full bg-sora-navy text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-sora-navy/20 hover:bg-sora-blue transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-[0.2em] text-[10px] mt-4"
+                  disabled={isLoading}
+                  className="w-full bg-sora-navy text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-sora-navy/20 hover:bg-sora-blue transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-[0.2em] text-[10px] mt-4 disabled:opacity-50"
                 >
-                  <LogIn size={18}/> Sign In ke Portal
+                  {isLoading ? 'MENGHUBUNGKAN...' : <><LogIn size={18}/> Sign In ke Portal</>}
                 </button>
               </form>
+
+              {/* TAUTAN KE HALAMAN REGISTER */}
+              <div className="mt-8 text-center border-t border-gray-100 pt-6">
+                <p className="text-xs font-bold text-gray-400 mb-2">Calon siswa baru?</p>
+                <button 
+                  type="button"
+                  onClick={() => navigate('/register')}
+                  className="text-[10px] font-black text-sora-blue hover:text-sora-navy transition-colors uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-xl"
+                >
+                  Daftar PPDB Online
+                </button>
+              </div>
+
             </div>
           ) : (
-            /* Bagian Forgot Password tetap sama, tapi dengan h-full agar tidak scroll */
             <div className="animate-in fade-in zoom-in-95 duration-500 text-left">
                <button 
                 onClick={() => setIsForgot(false)}
@@ -166,7 +200,7 @@ export default function LoginPage({ onLogin }) {
             </div>
           )}
 
-          <div className="mt-12 text-center">
+          <div className="mt-8 text-center">
             <p className="text-[9px] text-gray-300 font-black uppercase tracking-[0.4em]">
               SORA Engine v1.0
             </p>
