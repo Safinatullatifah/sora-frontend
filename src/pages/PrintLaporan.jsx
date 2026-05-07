@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Printer, ArrowLeft } from 'lucide-react';
 
 export default function PrintLaporan() {
-  const [reportData, setReportData] = useState(null);
-
-  useEffect(() => {
+  const [reportData] = useState(() => {
     const savedData = localStorage.getItem('printLaporanData');
-    if (savedData) {
-      setReportData(JSON.parse(savedData));
-    }
-  }, []);
+    return savedData ? JSON.parse(savedData) : null;
+  });
 
   if (!reportData) {
     return <div className="p-10 text-center font-bold text-gray-500">Memuat data laporan...</div>;
@@ -17,8 +13,6 @@ export default function PrintLaporan() {
 
   return (
     <div className="bg-white text-black p-10 font-sans max-w-4xl mx-auto relative">
-      
-      {/* TOMBOL KONTROL */}
       <div className="mb-10 flex justify-end items-center gap-3 print:hidden bg-gray-50 p-4 rounded-2xl border border-gray-200 shadow-sm">
          <button onClick={() => window.close()} className="flex items-center gap-2 px-4 py-2.5 text-gray-500 hover:text-sora-navy hover:bg-gray-200 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">
             <ArrowLeft size={16}/> Tutup Tab
@@ -28,7 +22,6 @@ export default function PrintLaporan() {
          </button>
       </div>
 
-      {/* KOP SURAT */}
       <div className="border-b-4 border-black pb-6 mb-8 text-center flex items-center justify-center gap-6">
         <div className="w-20 h-20 bg-black text-white flex items-center justify-center font-black text-4xl rounded-full print-exact">
           S
@@ -40,13 +33,11 @@ export default function PrintLaporan() {
         </div>
       </div>
 
-      {/* JUDUL LAPORAN */}
       <div className="text-center mb-10">
         <h2 className="text-xl font-bold underline uppercase">Laporan Keuangan Harian</h2>
         <p className="text-sm mt-1">Periode Cetak: {reportData.tanggal}</p>
       </div>
 
-      {/* RINGKASAN TOTAL */}
       <div className="mb-8 p-5 bg-gray-100 border border-black rounded-lg print-exact">
         <h3 className="font-bold uppercase mb-4 underline">A. Ringkasan Kas Sistem</h3>
         <div className="grid grid-cols-3 gap-4 text-center">
@@ -65,7 +56,6 @@ export default function PrintLaporan() {
         </div>
       </div>
 
-      {/* TABEL RINCIAN SISWA */}
       <h3 className="font-bold uppercase mb-4 underline">B. Rincian per Siswa Aktif</h3>
       <table className="w-full border-collapse border border-black mb-16 text-sm">
         <thead>
@@ -92,7 +82,6 @@ export default function PrintLaporan() {
         </tbody>
       </table>
 
-      {/* TANDA TANGAN */}
       <div className="flex justify-between items-end mt-10">
         <div className="text-center w-64">
           <p className="mb-20">Mengetahui,<br/>Kepala Sekolah,</p>
@@ -105,7 +94,6 @@ export default function PrintLaporan() {
           <p className="text-sm">NIP. 19900817 2026 01</p>
         </div>
       </div>
-      
     </div>
   );
 }

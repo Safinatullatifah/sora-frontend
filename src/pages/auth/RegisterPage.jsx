@@ -5,7 +5,7 @@ import axios from 'axios';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nama: '', email: '', asalSekolah: '' });
+  const [form, setForm] = useState({ nama: '', email: '', asalSekolah: '', nisn: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -14,20 +14,18 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Menembak rute backend secara langsung ke port 3000
-      await axios.post('http://localhost:3000/api/auth/register-ppdb', {
-        nama: form.nama,
+      await axios.post(`${import.meta.env.VITE_API_URL}/auth/register`, {
+        nama_lengkap: form.nama,
         email: form.email,
-        asalSekolah: form.asalSekolah
+        nisn: form.nisn,
+        kelas: 'Calon Siswa', 
+        password: 'password123' 
       });
 
-      // Kalau tidak ada error dari backend, berarti email sukses terkirim!
       setIsSuccess(true);
-      
     } catch (error) {
-      console.error(error);
-      // Kalau backend gagal ngirim email, React akan memunculkan alert ini
-      alert("Waduh, pendaftaran gagal! Coba cek lagi terminal Backend kamu, pastikan App Password sudah benar dan server nyala.");
+      const errorMsg = error.response?.data?.message || "Pendaftaran gagal! Pastikan server menyala dan email/NISN belum terdaftar.";
+      alert(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -53,6 +51,7 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <input type="text" required value={form.nama} onChange={e=>setForm({...form, nama: e.target.value})} placeholder="Nama Lengkap Calon Siswa" className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all" />
+              <input type="text" required value={form.nisn} onChange={e=>setForm({...form, nisn: e.target.value})} placeholder="NISN" className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all" />
               <input type="email" required value={form.email} onChange={e=>setForm({...form, email: e.target.value})} placeholder="Email Aktif (Siswa / Orang Tua)" className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all" />
               <input type="text" required value={form.asalSekolah} onChange={e=>setForm({...form, asalSekolah: e.target.value})} placeholder="Asal Sekolah (SMP/MTs)" className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all" />
               
@@ -68,14 +67,20 @@ export default function RegisterPage() {
             </div>
             <h3 className="text-2xl font-black text-sora-navy mb-2">Pendaftaran Sukses!</h3>
             <p className="text-sm font-bold text-sora-gray leading-relaxed mb-8">
-              Kami telah mengirimkan instruksi pembayaran biaya formulir ke email <br/><strong className="text-sora-blue">{form.email}</strong>.
+              Kami telah mengirimkan instruksi login dan pembayaran formulir ke email <br/><strong className="text-sora-blue">{form.email}</strong>.
             </p>
+            <div className="bg-blue-50 text-sora-blue p-4 rounded-xl mb-6 text-xs font-bold text-left border border-blue-100">
+              <p>Harap catat kredensial awal Anda:</p>
+              <ul className="list-disc ml-5 mt-2">
+                <li>Email: {form.email}</li>
+                <li>Password Default: password123</li>
+              </ul>
+            </div>
             <button onClick={() => navigate('/login')} className="w-full bg-gray-100 text-sora-navy hover:bg-gray-200 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">
               Tutup & Kembali ke Login
             </button>
           </div>
         )}
-
       </div>
     </div>
   );
