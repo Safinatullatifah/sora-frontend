@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSiswa } from '../../context/SiswaContext';
-import { User, Mail, GraduationCap, MapPin, Phone, Save, CheckCircle2, Loader2 } from 'lucide-react';
+import { User, Mail, GraduationCap, MapPin, Phone, Save, CheckCircle2, Loader2, Layers } from 'lucide-react';
 
 export default function ProfilSiswa() {
   const { profil, fetchProfil } = useSiswa();
@@ -47,32 +47,32 @@ export default function ProfilSiswa() {
 
   if (!profil) {
     return (
-      <div className="h-96 flex items-center justify-center">
+      <div className="h-[60vh] flex items-center justify-center">
         <Loader2 className="animate-spin text-sora-blue" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="bg-white rounded-[3rem] border shadow-sm overflow-hidden">
-        <div className="h-32 bg-sora-navy relative">
-          <div className="absolute -bottom-12 left-10">
-            <div className="w-24 h-24 bg-white rounded-3xl p-1 shadow-xl">
-              <div className="w-full h-full bg-sora-blue/10 rounded-2xl flex items-center justify-center text-sora-blue">
-                <User size={40} />
+    <div className="max-w-4xl mx-auto space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      <div className="bg-white rounded-[2rem] md:rounded-[3rem] border shadow-sm overflow-hidden">
+        <div className="h-28 md:h-32 bg-sora-navy relative">
+          <div className="absolute -bottom-10 md:-bottom-12 left-6 md:left-10">
+            <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-2xl md:rounded-3xl p-1 shadow-xl">
+              <div className="w-full h-full bg-sora-blue/10 rounded-xl md:rounded-2xl flex items-center justify-center text-sora-blue">
+                <User size={32} className="md:w-10 md:h-10" />
               </div>
             </div>
           </div>
         </div>
         
-        <div className="pt-16 pb-10 px-10">
+        <div className="pt-14 pb-8 px-6 md:pt-16 md:pb-10 md:px-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h2 className="text-2xl font-black text-sora-navy">{profil.nama_lengkap}</h2>
-              <p className="text-sm font-bold text-gray-400">Siswa • {profil.kelas}</p>
+              <h2 className="text-xl md:text-2xl font-black text-sora-navy">{profil.nama_lengkap}</h2>
+              <p className="text-xs md:text-sm font-bold text-gray-400">Siswa • {profil.kelas}</p>
             </div>
-            <div className="flex items-center gap-2 bg-sora-green/10 text-sora-green px-4 py-2 rounded-xl border border-sora-green/20">
+            <div className="flex items-center gap-2 bg-sora-green/10 text-sora-green px-4 py-2 rounded-xl border border-sora-green/20 w-max">
               <CheckCircle2 size={16} />
               <span className="text-[10px] font-black uppercase tracking-widest">Terverifikasi</span>
             </div>
@@ -80,14 +80,14 @@ export default function ProfilSiswa() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2">
-          <div className="bg-white rounded-[2.5rem] border shadow-sm p-8">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-lg font-black text-sora-navy uppercase tracking-widest">Data Personal</h3>
+          <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border shadow-sm p-6 md:p-8">
+            <div className="flex justify-between items-center mb-6 md:mb-8">
+              <h3 className="text-base md:text-lg font-black text-sora-navy uppercase tracking-widest">Data Personal</h3>
               <button 
                 onClick={() => setIsEditing(!isEditing)}
-                className="text-[10px] font-black text-sora-blue hover:bg-sora-blue/5 px-4 py-2 rounded-lg transition-all uppercase tracking-widest"
+                className="text-[10px] font-black text-sora-blue hover:bg-sora-blue/5 px-4 py-2 rounded-lg transition-all uppercase tracking-widest whitespace-nowrap"
               >
                 {isEditing ? 'Batal' : 'Edit Profil'}
               </button>
@@ -123,7 +123,7 @@ export default function ProfilSiswa() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Kelas</label>
                   <div className="relative">
                     <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -143,7 +143,7 @@ export default function ProfilSiswa() {
                   <button 
                     type="submit" 
                     disabled={isLoading}
-                    className="w-full md:w-auto bg-sora-navy text-white px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sora-blue transition-all disabled:opacity-50"
+                    className="w-full md:w-auto bg-sora-navy text-white px-8 py-4 md:py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sora-blue transition-all disabled:opacity-50 shadow-md"
                   >
                     {isLoading ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
                     Simpan Perubahan
@@ -155,25 +155,25 @@ export default function ProfilSiswa() {
         </div>
 
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border shadow-sm p-8">
+          <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border shadow-sm p-6 md:p-8">
             <h3 className="text-[10px] font-black text-sora-gray uppercase tracking-widest mb-6">Kontak & Akses</h3>
             <div className="space-y-5">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-50 text-sora-blue rounded-xl"><Mail size={18} /></div>
-                <div>
+                <div className="p-3 bg-blue-50 text-sora-blue rounded-xl shrink-0"><Mail size={18} /></div>
+                <div className="overflow-hidden">
                   <p className="text-[9px] font-black text-gray-400 uppercase">Email Akun</p>
-                  <p className="text-xs font-bold text-sora-navy">{profil.user?.email || '-'}</p>
+                  <p className="text-xs font-bold text-sora-navy truncate">{profil.user?.email || '-'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-orange-50 text-orange-500 rounded-xl"><Phone size={18} /></div>
+                <div className="p-3 bg-orange-50 text-orange-500 rounded-xl shrink-0"><Phone size={18} /></div>
                 <div>
                   <p className="text-[9px] font-black text-gray-400 uppercase">WhatsApp</p>
                   <p className="text-xs font-bold text-sora-navy">0812-3456-7890</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-50 text-sora-green rounded-xl"><MapPin size={18} /></div>
+                <div className="p-3 bg-green-50 text-sora-green rounded-xl shrink-0"><MapPin size={18} /></div>
                 <div>
                   <p className="text-[9px] font-black text-gray-400 uppercase">Lokasi</p>
                   <p className="text-xs font-bold text-sora-navy">Jawa Timur, ID</p>
@@ -184,26 +184,5 @@ export default function ProfilSiswa() {
         </div>
       </div>
     </div>
-  );
-}
-
-function Layers({ size, className }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </svg>
   );
 }

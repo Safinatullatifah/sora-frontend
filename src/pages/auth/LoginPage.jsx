@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Lock, User, ArrowLeft, Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
@@ -13,13 +13,6 @@ export default function LoginPage({ onLogin }) {
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,8 +64,8 @@ export default function LoginPage({ onLogin }) {
   };
 
   return (
-    <div className="h-screen w-screen bg-sora-bg flex items-center justify-center p-6 font-sans overflow-hidden">
-      <div className="max-w-[1000px] w-full h-[600px] grid grid-cols-1 lg:grid-cols-2 bg-white rounded-[3rem] shadow-2xl shadow-sora-blue/10 overflow-hidden border border-gray-100">
+    <div className="min-h-screen w-full bg-sora-bg flex items-center justify-center p-4 sm:p-6 font-sans">
+      <div className="max-w-[1000px] w-full min-h-[600px] lg:h-[600px] grid grid-cols-1 lg:grid-cols-2 bg-white rounded-[2rem] sm:rounded-[3rem] shadow-2xl shadow-sora-blue/10 overflow-hidden border border-gray-100">
         
         <div className="hidden lg:flex bg-sora-navy p-12 flex-col justify-between relative overflow-hidden">
           <div className="relative z-10">
@@ -97,11 +90,12 @@ export default function LoginPage({ onLogin }) {
           <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-sora-blue/20 rounded-full blur-3xl text-left"></div>
         </div>
 
-        <div className="p-10 lg:p-16 flex flex-col justify-center bg-white relative overflow-hidden">
+        <div className="p-8 sm:p-10 lg:p-16 flex flex-col justify-center bg-white relative overflow-hidden">
           {!isForgot ? (
-            <div className="animate-in fade-in slide-in-from-right-8 duration-500">
+            <div className="animate-in fade-in slide-in-from-right-8 duration-500 w-full max-w-md mx-auto">
               <div className="mb-10 text-left">
-                <h2 className="text-3xl font-black text-sora-navy mb-2 tracking-tight">Selamat Datang!</h2>
+                <div className="lg:hidden w-14 h-14 bg-sora-blue rounded-xl flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg">S</div>
+                <h2 className="text-2xl sm:text-3xl font-black text-sora-navy mb-2 tracking-tight">Selamat Datang!</h2>
                 <p className="text-sora-gray font-medium text-sm">Silakan masuk untuk melanjutkan.</p>
               </div>
 
@@ -156,7 +150,7 @@ export default function LoginPage({ onLogin }) {
                 <button 
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-sora-navy text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-sora-navy/20 hover:bg-sora-blue transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-[0.2em] text-[10px] mt-4 disabled:opacity-50"
+                  className="w-full bg-sora-navy text-white font-black py-4 sm:py-5 rounded-[1.5rem] shadow-xl shadow-sora-navy/20 hover:bg-sora-blue transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-[0.2em] text-[10px] mt-4 disabled:opacity-50"
                 >
                   {isLoading ? <Loader2 className="animate-spin" size={18}/> : <><LogIn size={18}/> Sign In ke Portal</>}
                 </button>
@@ -174,7 +168,7 @@ export default function LoginPage({ onLogin }) {
               </div>
             </div>
           ) : (
-            <div className="animate-in fade-in zoom-in-95 duration-500 text-left">
+            <div className="animate-in fade-in zoom-in-95 duration-500 text-left w-full max-w-md mx-auto">
                <button 
                 onClick={() => setIsForgot(false)}
                 className="flex items-center gap-2 text-sora-gray hover:text-sora-navy mb-8 font-bold text-[10px] uppercase tracking-widest"
@@ -183,7 +177,7 @@ export default function LoginPage({ onLogin }) {
               </button>
               
               <div className="mb-10">
-                <h2 className="text-3xl font-black text-sora-navy mb-2 tracking-tight">Reset Akses</h2>
+                <h2 className="text-2xl sm:text-3xl font-black text-sora-navy mb-2 tracking-tight">Reset Akses</h2>
                 <p className="text-sora-gray text-sm font-medium">Link pemulihan akan dikirimkan ke email.</p>
               </div>
 
@@ -202,7 +196,7 @@ export default function LoginPage({ onLogin }) {
                     placeholder="Masukkan email Anda..." 
                     required
                   />
-                  <button type="submit" className="w-full bg-sora-blue text-white font-black py-5 rounded-[1.5rem] uppercase tracking-[0.2em] text-[10px]">Kirim Link</button>
+                  <button type="submit" className="w-full bg-sora-blue text-white font-black py-4 sm:py-5 rounded-[1.5rem] uppercase tracking-[0.2em] text-[10px]">Kirim Link</button>
                 </form>
               )}
             </div>
