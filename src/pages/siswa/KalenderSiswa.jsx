@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { CalendarDays, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function KalenderSiswa() {
   const [events, setEvents] = useState([]);
@@ -15,7 +16,7 @@ export default function KalenderSiswa() {
         });
         setEvents(res.data.data);
       } catch {
-        console.error("Gagal memuat kalender");
+        toast.error("Gagal memuat kalender akademik");
       } finally {
         setIsLoading(false);
       }

@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { Search, Eye, Edit3, Trash2, Plus, Receipt, X, Printer, Mail, GraduationCap, KeyRound, Loader2 } from 'lucide-react';
+import { Search, Eye, Edit3, Trash2, Plus, Receipt, X, Printer, KeyRound, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export default function DataSiswaAdmin() {
   const [dataSiswa, setDataSiswa] = useState([]);
@@ -17,16 +20,28 @@ export default function DataSiswaAdmin() {
   const [selectedSiswa, setSelectedSiswa] = useState(null); 
   const [formSiswa, setFormSiswa] = useState({ 
     id: null, nisn: '', nama: '', kelas: '', jurusan: '', angkatan: '', 
-    email: '', no_hp: '', alamat: '', nama_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
+    email: '', no_hp: '', alamat: '', nama_ortu: '', email_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
   });
   const [isModalSiswaOpen, setIsModalSiswaOpen] = useState(false);
 
-  const [isModalMassalOpen, setIsModalMassalOpen] = useState(false);
-  const [formMassal, setFormMassal] = useState({ targetKelas: 'Semua', namaTagihan: '', nominal: '', kategori: 'SPP', isSemester: false });
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+  const [invoiceMode, setInvoiceMode] = useState('massal');
+  const [isSubmittingInvoice, setIsSubmittingInvoice] = useState(false);
+  const [formInvoice, setFormInvoice] = useState({
+    targetKelas: 'Semua',
+    student_id: '',
+    judul_tagihan: '',
+    jenis_tagihan: 'SPP',
+    nominal: '',
+    bulan: '',
+    tahun: new Date().getFullYear().toString()
+  });
 
   const [dataPrintStruk, setDataPrintStruk] = useState(null);
   const [dataPrintTanggungan, setDataPrintTanggungan] = useState(null);
   const [isResetting, setIsResetting] = useState(null);
+
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', desc: '', action: null });
 
   const getAuthHeaders = useCallback(() => {
     return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
@@ -41,7 +56,7 @@ export default function DataSiswaAdmin() {
         years: res.data.data.years
       });
     } catch {
-      console.error("Gagal memuat master data");
+      toast.error("Gagal memuat master data");
     }
   }, [getAuthHeaders]);
 
@@ -63,6 +78,7 @@ export default function DataSiswaAdmin() {
         no_hp: item.no_hp || '',
         alamat: item.alamat || item.orang_tua?.alamat || '',
         nama_ortu: item.orang_tua?.nama_lengkap || '',
+        email_ortu: item.orang_tua?.email || '',
         no_hp_ortu: item.orang_tua?.no_hp || '',
         statusSiswa: item.status === 'AKTIF' ? 'Aktif' : 'Keluar',
         tagihan: item.invoices ? item.invoices.map(inv => ({
@@ -77,7 +93,7 @@ export default function DataSiswaAdmin() {
       setDataSiswa(mappedData);
       setTotalPages(response.data.meta.total_pages);
     } catch {
-      console.error("Gagal memuat data siswa");
+      toast.error("Gagal memuat data siswa");
     }
   }, [currentPage, itemsPerPage, searchQuery, getAuthHeaders]);
 
@@ -114,6 +130,7 @@ export default function DataSiswaAdmin() {
         no_hp: item.no_hp || '',
         alamat: item.alamat || item.orang_tua?.alamat || '',
         nama_ortu: item.orang_tua?.nama_lengkap || '',
+        email_ortu: item.orang_tua?.email || '',
         no_hp_ortu: item.orang_tua?.no_hp || '',
         statusSiswa: item.status === 'AKTIF' ? 'Aktif' : 'Keluar',
         tagihan: item.invoices ? item.invoices.map(inv => ({
@@ -128,13 +145,13 @@ export default function DataSiswaAdmin() {
         setTimeout(() => document.getElementById('detail-siswa-panel')?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     } catch {
-      alert("Gagal mengambil detail siswa");
+      toast.error("Gagal mengambil detail siswa");
     }
   };
 
   const handleSaveSiswa = async () => {
     if (!formSiswa.nisn || !formSiswa.nama || !formSiswa.kelas || !formSiswa.jurusan || !formSiswa.angkatan || !formSiswa.email) {
-      alert("Harap lengkapi semua data wajib siswa (termasuk Email, Angkatan, Jurusan, dan Kelas)!");
+      toast.error("Validasi Gagal", { description: "Harap lengkapi semua data wajib siswa (Email, Angkatan, Jurusan, Kelas)." });
       return;
     }
 
@@ -150,8 +167,10 @@ export default function DataSiswaAdmin() {
           no_hp: formSiswa.no_hp,
           alamat: formSiswa.alamat,
           nama_ortu: formSiswa.nama_ortu,
+          email_orang_tua: formSiswa.email_ortu,
           no_hp_ortu: formSiswa.no_hp_ortu
         }, getAuthHeaders());
+        toast.success("Data siswa berhasil diperbarui");
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL}/auth/register`, {
           email: formSiswa.email,
@@ -164,27 +183,39 @@ export default function DataSiswaAdmin() {
           no_hp: formSiswa.no_hp,
           alamat: formSiswa.alamat,
           nama_orang_tua: formSiswa.nama_ortu,
+          email_orang_tua: formSiswa.email_ortu,
           hp_orang_tua: formSiswa.no_hp_ortu
         });
+        toast.success("Siswa baru berhasil ditambahkan");
       }
       setIsModalSiswaOpen(false);
       fetchStudents();
       if (selectedSiswa?.id === formSiswa.id) handleSelectSiswa(formSiswa);
     } catch (error) {
-      alert(error.response?.data?.message || "Gagal menyimpan data siswa");
+      toast.error("Gagal menyimpan data", { description: error.response?.data?.message || "Terjadi kesalahan sistem" });
     }
   };
 
-  const handleDeleteSiswa = async (id) => {
-    if (window.confirm('Hapus siswa ini dari sistem?')) {
-      try {
-        await axios.delete(`${import.meta.env.VITE_API_URL}/students/${id}`, getAuthHeaders());
-        if (selectedSiswa?.id === id) setSelectedSiswa(null);
-        fetchStudents();
-      } catch {
-        alert("Gagal menghapus siswa");
-      }
+  const executeDelete = async (id) => {
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/students/${id}`, getAuthHeaders());
+      toast.success("Siswa berhasil dihapus dari sistem");
+      if (selectedSiswa?.id === id) setSelectedSiswa(null);
+      fetchStudents();
+    } catch {
+      toast.error("Gagal menghapus siswa");
+    } finally {
+      setConfirmDialog({ ...confirmDialog, isOpen: false });
     }
+  };
+
+  const handleDeleteSiswa = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Hapus Data Siswa",
+      desc: "Apakah Anda yakin ingin menghapus siswa ini secara permanen? Data yang telah dihapus tidak dapat dikembalikan.",
+      action: () => executeDelete(id)
+    });
   };
 
   const openModalSiswa = (siswa = null) => {
@@ -193,30 +224,65 @@ export default function DataSiswaAdmin() {
     } else {
       setFormSiswa({ 
         id: null, nisn: '', nama: '', kelas: '', jurusan: '', angkatan: '', 
-        email: '', no_hp: '', alamat: '', nama_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
+        email: '', no_hp: '', alamat: '', nama_ortu: '', email_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
       });
     }
     setIsModalSiswaOpen(true);
   };
 
-  const handleGenerateTagihanMassal = async () => {
-    if (!formMassal.namaTagihan || !formMassal.nominal) return;
+  const handleInvoiceChange = (e) => {
+    setFormInvoice({ ...formInvoice, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmitInvoice = async (e) => {
+    e.preventDefault();
+    if (!formInvoice.judul_tagihan || !formInvoice.nominal) {
+      toast.error("Validasi Gagal", { description: "Judul tagihan dan nominal wajib diisi!" });
+      return;
+    }
+    setIsSubmittingInvoice(true);
     try {
-      const nominalAkhir = formMassal.isSemester ? parseInt(formMassal.nominal, 10) * 6 : parseInt(formMassal.nominal, 10);
-      const namaAkhir = formMassal.isSemester ? `${formMassal.namaTagihan} (1 Semester)` : formMassal.namaTagihan;
-
-      await axios.post(`${import.meta.env.VITE_API_URL}/invoices/massal`, {
-        targetKelas: formMassal.targetKelas,
-        judul_tagihan: namaAkhir,
-        jenis_tagihan: formMassal.kategori,
-        nominal: nominalAkhir
-      }, getAuthHeaders());
-
-      alert("Tagihan massal berhasil di-generate");
-      setIsModalMassalOpen(false);
+      if (invoiceMode === 'massal') {
+        await axios.post(`${import.meta.env.VITE_API_URL}/invoices/massal/create`, {
+          targetKelas: formInvoice.targetKelas,
+          judul_tagihan: formInvoice.judul_tagihan,
+          jenis_tagihan: formInvoice.jenis_tagihan,
+          nominal: parseInt(formInvoice.nominal, 10),
+          bulan: formInvoice.bulan,
+          tahun: parseInt(formInvoice.tahun, 10)
+        }, getAuthHeaders());
+        toast.success("Tagihan massal berhasil diterbitkan");
+      } else {
+        if (!formInvoice.student_id) {
+          toast.error("Validasi Gagal", { description: "Pilih siswa terlebih dahulu!" });
+          setIsSubmittingInvoice(false);
+          return;
+        }
+        await axios.post(`${import.meta.env.VITE_API_URL}/invoices`, {
+          student_id: formInvoice.student_id,
+          judul_tagihan: formInvoice.judul_tagihan,
+          jenis_tagihan: formInvoice.jenis_tagihan,
+          nominal: parseInt(formInvoice.nominal, 10),
+          bulan: formInvoice.bulan,
+          tahun: parseInt(formInvoice.tahun, 10)
+        }, getAuthHeaders());
+        toast.success("Tagihan individu berhasil diterbitkan");
+      }
+      setIsInvoiceModalOpen(false);
+      setFormInvoice({
+        ...formInvoice,
+        judul_tagihan: '',
+        nominal: '',
+        bulan: ''
+      });
       fetchStudents();
-    } catch {
-      alert("Gagal membuat tagihan massal");
+      if (selectedSiswa && invoiceMode === 'individu' && formInvoice.student_id === selectedSiswa.id) {
+        handleSelectSiswa({ id: selectedSiswa.id });
+      }
+    } catch (error) {
+      toast.error("Gagal membuat tagihan", { description: error.response?.data?.message || "Terjadi kesalahan sistem" });
+    } finally {
+      setIsSubmittingInvoice(false);
     }
   };
 
@@ -234,18 +300,26 @@ export default function DataSiswaAdmin() {
     setTimeout(() => { window.print(); setDataPrintTanggungan(null); }, 150);
   };
 
-  const handleResetPassword = async (id) => {
-    if (window.confirm('Reset password siswa ini menjadi default (123456)?')) {
-      setIsResetting(id);
-      try {
-        await axios.post(`${import.meta.env.VITE_API_URL}/admin/reset-password-student/${id}`, {}, getAuthHeaders());
-        alert('Password berhasil direset ke default (123456)');
-      } catch {
-        alert('Gagal mereset password.');
-      } finally {
-        setIsResetting(null);
-      }
+  const executeResetPassword = async (id) => {
+    setIsResetting(id);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/reset-password-student/${id}`, {}, getAuthHeaders());
+      toast.success("Berhasil", { description: "Password berhasil direset ke default (123456)" });
+    } catch {
+      toast.error("Gagal mereset password siswa.");
+    } finally {
+      setIsResetting(null);
+      setConfirmDialog({ ...confirmDialog, isOpen: false });
     }
+  };
+
+  const handleResetPassword = (id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Reset Password",
+      desc: "Apakah Anda yakin ingin mereset password akun siswa ini menjadi default (123456)?",
+      action: () => executeResetPassword(id)
+    });
   };
 
   const filteredList = useMemo(() => {
@@ -342,7 +416,7 @@ export default function DataSiswaAdmin() {
 
         <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
           <div className="p-4 md:p-6 border-b flex gap-2 justify-between md:justify-end bg-gray-50/50">
-            <button onClick={() => setIsModalMassalOpen(true)} className="flex-1 md:flex-none justify-center bg-sora-bg border border-sora-blue/20 text-sora-blue px-4 py-3 md:py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-sora-blue hover:text-white transition-all shadow-sm md:shadow-none"><Receipt size={14}/> Massal</button>
+            <button onClick={() => setIsInvoiceModalOpen(true)} className="flex-1 md:flex-none justify-center bg-sora-bg border border-sora-blue/20 text-sora-blue px-4 py-3 md:py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-sora-blue hover:text-white transition-all shadow-sm md:shadow-none"><Receipt size={14}/> Buat Tagihan</button>
             <button onClick={() => openModalSiswa()} className="flex-1 md:flex-none justify-center bg-sora-blue text-white px-4 py-3 md:py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2 hover:bg-sora-navy transition-all shadow-lg"><Plus size={14}/> Tambah</button>
           </div>
           <div className="overflow-x-auto custom-scrollbar">
@@ -396,7 +470,6 @@ export default function DataSiswaAdmin() {
         </div>
       </div>
 
-      {/* Panel Detail Siswa (Kanan) */}
       <div className="lg:col-span-1" id="detail-siswa-panel">
         {selectedSiswa ? (
           <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-sora-blue/30 shadow-xl p-6 md:p-8 sticky top-6">
@@ -412,7 +485,8 @@ export default function DataSiswaAdmin() {
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Email</span><span className="font-bold text-sora-navy">{selectedSiswa.email || '-'}</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">WA Siswa</span><span className="font-bold text-sora-navy">{selectedSiswa.no_hp || '-'}</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Alamat</span><span className="font-bold text-sora-navy text-right max-w-[180px] truncate">{selectedSiswa.alamat || '-'}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500 font-medium">Wali / Ortu</span><span className="font-bold text-sora-navy">{selectedSiswa.nama_ortu || '-'} ({selectedSiswa.no_hp_ortu || '-'})</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Wali / Ortu</span><span className="font-bold text-sora-navy">{selectedSiswa.nama_ortu || '-'} ({selectedSiswa.no_hp_ortu || '-'})</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 font-medium">Email Ortu</span><span className="font-bold text-sora-navy">{selectedSiswa.email_ortu || '-'}</span></div>
             </div>
 
             <button onClick={() => handleCetakTanggungan(selectedSiswa)} className="w-full mb-6 bg-sora-navy text-white px-4 py-4 md:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sora-blue shadow-md transition-all active:scale-95"><Printer size={16}/> Cetak Rekap</button>
@@ -439,7 +513,6 @@ export default function DataSiswaAdmin() {
         ) : (<div className="h-[400px] md:h-full border-2 border-dashed border-gray-200 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center justify-center text-gray-400 p-10 bg-gray-50/50"><Search size={40} className="mb-4 opacity-20"/><p className="text-xs font-bold text-center leading-relaxed">Pilih siswa dari daftar<br/>untuk melihat rincian keuangan.</p></div>)}
       </div>
 
-      {/* Modal Form Siswa */}
       {isModalSiswaOpen && (
         <div className="fixed inset-0 bg-sora-navy/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in duration-300">
@@ -457,7 +530,7 @@ export default function DataSiswaAdmin() {
               </div>
 
               <div>
-                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email Aktif</label>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email Aktif Siswa</label>
                 <input type="email" value={formSiswa.email} onChange={e=>setFormSiswa({...formSiswa, email: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
               </div>
 
@@ -479,6 +552,11 @@ export default function DataSiswaAdmin() {
               <div>
                 <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">No HP Orang Tua</label>
                 <input type="text" value={formSiswa.no_hp_ortu} onChange={e=>setFormSiswa({...formSiswa, no_hp_ortu: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email Orang Tua</label>
+                <input type="email" value={formSiswa.email_ortu} onChange={e=>setFormSiswa({...formSiswa, email_ortu: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
               </div>
 
               <div className="md:col-span-2 pt-4 border-t border-gray-100">
@@ -529,28 +607,123 @@ export default function DataSiswaAdmin() {
         </div>
       )}
       
-      {/* Modal Tagihan Massal */}
-      {isModalMassalOpen && (
+      {isInvoiceModalOpen && (
         <div className="fixed inset-0 bg-sora-navy/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in duration-300">
-            <h3 className="text-xl md:text-2xl font-black mb-6">Tagihan Massal</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Nama Tagihan</label>
-                <input type="text" placeholder="Contoh: SPP Bulan Juli" onChange={e=>setFormMassal({...formMassal, namaTagihan: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm"/>
-              </div>
-              <div>
-                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Nominal</label>
-                <input type="number" placeholder="250000" onChange={e=>setFormMassal({...formMassal, nominal: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm"/>
-              </div>
+          <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in duration-300">
+            <h3 className="text-xl md:text-2xl font-black mb-4">Buat Tagihan Baru</h3>
+            
+            <div className="flex gap-2 bg-gray-50 p-1.5 rounded-2xl mb-6">
+              <button
+                type="button"
+                onClick={() => setInvoiceMode('massal')}
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${invoiceMode === 'massal' ? 'bg-white text-sora-navy shadow-sm' : 'text-gray-400 hover:text-sora-navy'}`}
+              >
+                Tagihan Massal
+              </button>
+              <button
+                type="button"
+                onClick={() => setInvoiceMode('individu')}
+                className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${invoiceMode === 'individu' ? 'bg-white text-sora-navy shadow-sm' : 'text-gray-400 hover:text-sora-navy'}`}
+              >
+                Tagihan Individu
+              </button>
             </div>
-            <div className="mt-8 space-y-3">
-              <button onClick={handleGenerateTagihanMassal} className="w-full bg-sora-navy text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-sora-blue transition-all shadow-lg active:scale-95">GENERATE TAGIHAN</button>
-              <button onClick={()=>setIsModalMassalOpen(false)} className="w-full bg-gray-100 text-sora-navy py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">BATAL</button>
-            </div>
+
+            <form onSubmit={handleSubmitInvoice} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Judul Tagihan</label>
+                <input type="text" name="judul_tagihan" required placeholder="Contoh: SPP Bulan Juli" value={formInvoice.judul_tagihan} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Kategori</label>
+                  <select name="jenis_tagihan" value={formInvoice.jenis_tagihan} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium appearance-none">
+                    <option value="SPP">SPP</option>
+                    <option value="DU">Dana Ujian (DU)</option>
+                    <option value="BUKU">Buku</option>
+                    <option value="SERAGAM">Seragam</option>
+                    <option value="LAINNYA">Lainnya</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Nominal (Rp)</label>
+                  <input 
+                    type="number" 
+                    name="nominal" 
+                    required 
+                    placeholder="250000" 
+                    value={formInvoice.nominal} 
+                    onChange={handleInvoiceChange}
+                    onWheel={(e) => e.target.blur()} 
+                    onKeyDown={(e) => ['ArrowUp', 'ArrowDown'].includes(e.key) && e.preventDefault()} 
+                    className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+
+              {invoiceMode === 'massal' ? (
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Target Kelas</label>
+                  <select name="targetKelas" value={formInvoice.targetKelas} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium appearance-none">
+                    <option value="Semua">Semua Siswa Aktif</option>
+                    {masterData.grades.map(g => (
+                      <option key={g.id} value={g.name}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Pilih Siswa</label>
+                  <select name="student_id" required value={formInvoice.student_id} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium appearance-none">
+                    <option value="">Pilih Siswa dari Daftar</option>
+                    {dataSiswa.map(s => (
+                      <option key={s.id} value={s.id}>{s.nama} - {s.kelas}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Bulan (Opsional)</label>
+                  <input type="text" name="bulan" placeholder="Juli" value={formInvoice.bulan} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Tahun</label>
+                  <input type="number" name="tahun" required value={formInvoice.tahun} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-4 space-y-3">
+                <button type="submit" disabled={isSubmittingInvoice} className="w-full bg-sora-navy text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-sora-blue transition-all shadow-lg active:scale-95 disabled:opacity-50">
+                  {isSubmittingInvoice ? 'MEMPROSES...' : 'TERBITKAN TAGIHAN'}
+                </button>
+                <button type="button" onClick={()=>setIsInvoiceModalOpen(false)} className="w-full bg-gray-100 text-sora-navy py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">BATAL</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
+
+      <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, isOpen: false })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{confirmDialog.title}</DialogTitle>
+            <DialogDescription>
+              {confirmDialog.desc}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={confirmDialog.action}>
+              Ya, Lanjutkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

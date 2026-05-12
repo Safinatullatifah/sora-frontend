@@ -26,10 +26,8 @@ export function SiswaProvider({ children }) {
   const fetchTagihanData = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      const studentId = localStorage.getItem('studentId');
-      if (!studentId) return;
 
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/invoices/student/${studentId}`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/invoices`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

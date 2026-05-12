@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Download, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { toast } from 'sonner';
 
 export default function LaporanAdmin() {
   const [dataSiswa, setDataSiswa] = useState([]);
@@ -68,8 +69,8 @@ export default function LaporanAdmin() {
           kategoriRekap: rekapKategori
         });
 
-      } catch (error) {
-        console.error("Gagal mengambil data laporan:", error);
+      } catch {
+        toast.error("Gagal mengambil data laporan keuangan");
       } finally {
         setIsLoading(false);
       }
@@ -79,36 +80,42 @@ export default function LaporanAdmin() {
   }, []);
 
   const handleExport = (jenis) => {
-    const dataUntukExcel = dataSiswa.map((s, index) => {
-      return { 
-        "No": index + 1, 
-        "NISN": s.nisn, 
-        "Nama Siswa": s.nama, 
-        "Kelas": s.kelas, 
-        "Status Siswa": s.statusSiswa, 
-        "Total Lunas (Rp)": s.lunas, 
-        "Sisa Tunggakan (Rp)": s.nunggak 
-      };
-    });
-    
-    dataUntukExcel.push({}); 
-    dataUntukExcel.push({ 
-      "No": "", 
-      "NISN": "", 
-      "Nama Siswa": "TOTAL KESELURUHAN", 
-      "Kelas": "", 
-      "Status Siswa": "", 
-      "Total Lunas (Rp)": rekapKeuangan.totalLunas, 
-      "Sisa Tunggakan (Rp)": rekapKeuangan.totalNunggak 
-    });
-    
-    const worksheet = XLSX.utils.json_to_sheet(dataUntukExcel);
-    worksheet['!cols'] = [ { wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 } ];
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Laporan ${jenis}`);
-    
-    const tanggal = new Date().toLocaleDateString('id-ID').replace(/\//g, '-');
-    XLSX.writeFile(workbook, `Laporan_SORA_${jenis}_${tanggal}.xlsx`);
+    try {
+      const dataUntukExcel = dataSiswa.map((s, index) => {
+        return { 
+          "No": index + 1, 
+          "NISN": s.nisn, 
+          "Nama Siswa": s.nama, 
+          "Kelas": s.kelas, 
+          "Status Siswa": s.statusSiswa, 
+          "Total Lunas (Rp)": s.lunas, 
+          "Sisa Tunggakan (Rp)": s.nunggak 
+        };
+      });
+      
+      dataUntukExcel.push({}); 
+      dataUntukExcel.push({ 
+        "No": "", 
+        "NISN": "", 
+        "Nama Siswa": "TOTAL KESELURUHAN", 
+        "Kelas": "", 
+        "Status Siswa": "", 
+        "Total Lunas (Rp)": rekapKeuangan.totalLunas, 
+        "Sisa Tunggakan (Rp)": rekapKeuangan.totalNunggak 
+      });
+      
+      const worksheet = XLSX.utils.json_to_sheet(dataUntukExcel);
+      worksheet['!cols'] = [ { wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 } ];
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `Laporan ${jenis}`);
+      
+      const tanggal = new Date().toLocaleDateString('id-ID').replace(/\//g, '-');
+      XLSX.writeFile(workbook, `Laporan_SORA_${jenis}_${tanggal}.xlsx`);
+      
+      toast.success(`Laporan ${jenis} berhasil diunduh!`);
+    } catch {
+      toast.error("Gagal mengekspor laporan.");
+    }
   };
 
   if (isLoading) {

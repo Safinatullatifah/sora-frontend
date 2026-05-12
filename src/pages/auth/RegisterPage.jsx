@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from 'sonner';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function RegisterPage() {
     alamat: '',
     jurusan: '',
     nama_orang_tua: '',
+    email_orang_tua: '',
     hp_orang_tua: '',
     berkas_url: []
   });
@@ -34,7 +36,7 @@ export default function RegisterPage() {
         const res = await axios.get(`${import.meta.env.VITE_API_URL}/master/public/majors`);
         setMajors(res.data.data);
       } catch {
-        setErrorMessage("Gagal memuat daftar jurusan dari server.");
+        toast.error("Gagal memuat daftar jurusan dari server.");
       }
     };
     fetchMajors();
@@ -71,20 +73,40 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (form.nisn.length !== 10) {
+      toast.error("Data Tidak Valid", {
+        description: "NISN harus berjumlah tepat 10 digit angka."
+      });
+      return;
+    }
+
+    if (filesData.length === 0) {
+      toast.error("Berkas Belum Lengkap", {
+        description: "Harap unggah minimal 1 berkas pendukung (Ijazah/KK/Akta)."
+      });
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/registrations`, form);
+      toast.success("Pendaftaran Berhasil!", {
+        description: "Data Anda telah masuk ke dalam sistem kami."
+      });
       setIsSuccess(true);
     } catch (error) {
+      let errorMsg = error.response?.data?.message || "Pendaftaran gagal! Pastikan server menyala dan data belum terdaftar.";
       if (error.response?.data?.errors) {
         const errs = error.response.data.errors;
-        const messages = Object.values(errs).flat().join(', ');
-        setErrorMessage(`Validasi gagal: ${messages}`);
-      } else {
-        setErrorMessage(error.response?.data?.message || "Pendaftaran gagal! Pastikan server menyala dan data belum terdaftar.");
+        errorMsg = Object.values(errs).flat().join(', ');
       }
+      setErrorMessage(`Validasi gagal: ${errorMsg}`);
+      toast.error("Gagal Mendaftar", {
+        description: errorMsg
+      });
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +155,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Aktif</Label>
+                <Label htmlFor="email">Email Aktif Siswa</Label>
                 <Input id="email" type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="Email aktif" />
               </div>
 
@@ -168,6 +190,11 @@ export default function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="nama_orang_tua">Nama Orang Tua</Label>
                 <Input id="nama_orang_tua" required value={form.nama_orang_tua} onChange={e => setForm({...form, nama_orang_tua: e.target.value})} placeholder="Nama Ayah / Ibu" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email_orang_tua">Email Orang Tua</Label>
+                <Input id="email_orang_tua" type="email" required value={form.email_orang_tua} onChange={e => setForm({...form, email_orang_tua: e.target.value})} placeholder="Email aktif orang tua" />
               </div>
 
               <div className="space-y-2">

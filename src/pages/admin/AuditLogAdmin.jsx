@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { User, Activity, Clock, Search } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AuditLogAdmin() {
   const [logs, setLogs] = useState([]);
@@ -14,8 +15,8 @@ export default function AuditLogAdmin() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLogs(response.data.data || []);
-    } catch (error) {
-      console.error(error);
+    } catch {
+      toast.error("Gagal memuat log audit sistem");
     } finally {
       setIsLoading(false);
     }

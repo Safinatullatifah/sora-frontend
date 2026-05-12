@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Lock, User, ArrowLeft, Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
@@ -16,7 +17,11 @@ export default function LoginPage({ onLogin }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username || !password) return;
+    
+    if (!username || !password) {
+      toast.error("Email dan password wajib diisi!");
+      return;
+    }
 
     setIsLoading(true);
     localStorage.clear();
@@ -42,6 +47,8 @@ export default function LoginPage({ onLogin }) {
 
       const displayName = user.student?.nama_lengkap || user.email;
 
+      toast.success("Login berhasil!");
+      
       onLogin({ 
         role: finalRole, 
         name: displayName, 
@@ -50,7 +57,7 @@ export default function LoginPage({ onLogin }) {
 
     } catch (error) {
       const msg = error.response?.data?.message || "Login gagal! Periksa kembali email dan password.";
-      alert(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -59,7 +66,10 @@ export default function LoginPage({ onLogin }) {
   const handleResetPassword = (e) => {
     e.preventDefault();
     if (resetEmail) {
+      toast.success("Link pemulihan telah dikirim ke email Anda!");
       setEmailSent(true);
+    } else {
+      toast.error("Email wajib diisi!");
     }
   };
 

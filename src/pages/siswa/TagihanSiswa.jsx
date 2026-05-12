@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from 'sonner';
 
 export default function TagihanSiswa() {
   const { profil, tagihan, fetchTagihanData, totalNunggak } = useSiswa();
@@ -27,7 +28,6 @@ export default function TagihanSiswa() {
     if (kategoriAktif === 'Belum Bayar') return tagihan.filter(t => t.status !== 'Lunas');
     if (kategoriAktif === 'Riwayat Lunas') return tagihan.filter(t => t.status === 'Lunas');
     
-    // Mapping kategori UI ke Enum Database (DU)
     const dbKat = kategoriAktif === 'Dana Ujian' ? 'DU' : kategoriAktif.toUpperCase();
     return tagihan.filter(t => t.kategori?.toUpperCase() === dbKat || t.kategori === kategoriAktif);
   }, [tagihan, kategoriAktif]);
@@ -50,33 +50,76 @@ export default function TagihanSiswa() {
       const snapToken = response.data.data?.token || response.data.token;
 
       if (!snapToken) {
-        alert("Gagal mendapatkan token pembayaran dari server.");
+        toast.error("Gagal mendapatkan token pembayaran dari server.");
         return;
       }
 
       if (window.snap) {
         window.snap.pay(snapToken, {
           onSuccess: () => {
-            alert("Pembayaran Sukses!");
+            toast.success("Pembayaran Sukses!");
             fetchTagihanData();
           },
           onPending: () => {
-            alert("Silakan selesaikan pembayaranmu di ATM/Aplikasi.");
+            toast.info("Silakan selesaikan pembayaranmu di ATM/Aplikasi.");
             fetchTagihanData();
           },
           onError: () => {
-            alert("Pembayaran gagal diproses.");
+            toast.error("Pembayaran gagal diproses.");
           },
           onClose: () => {
-            alert("Jendela pembayaran ditutup sebelum selesai.");
+            toast.warning("Jendela pembayaran ditutup sebelum selesai.");
             fetchTagihanData();
           }
         });
       } else {
-        alert("Sistem Midtrans belum terinisialisasi.");
+        toast.error("Sistem Midtrans belum terinisialisasi.");
       }
     } catch {
-      alert("Terjadi kesalahan sistem saat menghubungi server pembayaran.");
+      toast.error("Terjadi kesalahan sistem saat menghubungi server pembayaran.");
+    }
+  };
+
+  const handlePayPaket = async (paketType) => {
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/invoices/paket`,
+        { paket: paketType },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+
+      const snapToken = response.data.data?.token || response.data.token;
+
+      if (!snapToken) {
+        toast.error("Gagal mendapatkan token pembayaran dari server.");
+        return;
+      }
+
+      if (window.snap) {
+        window.snap.pay(snapToken, {
+          onSuccess: () => {
+            toast.success("Pembayaran Paket Sukses!");
+            setIsModalPaketOpen(false);
+            fetchTagihanData();
+          },
+          onPending: () => {
+            toast.info("Silakan selesaikan pembayaranmu.");
+            setIsModalPaketOpen(false);
+            fetchTagihanData();
+          },
+          onError: () => {
+            toast.error("Pembayaran gagal diproses.");
+          },
+          onClose: () => {
+            toast.warning("Jendela pembayaran ditutup sebelum selesai.");
+            fetchTagihanData();
+          }
+        });
+      } else {
+        toast.error("Sistem Midtrans belum terinisialisasi.");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan sistem saat menghubungi server pembayaran.");
     }
   };
 
@@ -86,7 +129,7 @@ export default function TagihanSiswa() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => setFileBase64(reader.result);
-      reader.onerror = () => alert("Gagal membaca file");
+      reader.onerror = () => toast.error("Gagal membaca file");
     }
   };
 
@@ -98,19 +141,14 @@ export default function TagihanSiswa() {
         { bukti_transfer_url: fileBase64 },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
-      alert("Bukti transfer berhasil dikirim. Menunggu verifikasi Admin.");
+      toast.success("Berhasil", { description: "Bukti transfer berhasil dikirim. Menunggu verifikasi Admin." });
       setIsPaymentOptionOpen(false);
       fetchTagihanData();
     } catch (error) {
-      alert(error.response?.data?.message || "Gagal mengirim bukti transfer.");
+      toast.error("Gagal mengirim bukti", { description: error.response?.data?.message || "Terjadi kesalahan sistem." });
     } finally {
       setUploadingManual(false);
     }
-  };
-
-  const handlePayPaket = async () => {
-    alert("API integrasi pembayaran paket sedang dalam tahap pengembangan backend.");
-    setIsModalPaketOpen(false);
   };
 
   const handleCetakStruk = (item) => {
@@ -260,7 +298,6 @@ export default function TagihanSiswa() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Paket Pelunasan */}
       {isModalPaketOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-sora-navy/60 backdrop-blur-sm" onClick={() => setIsModalPaketOpen(false)}></div>
@@ -280,7 +317,7 @@ export default function TagihanSiswa() {
                 </div>
                 <div className="text-left md:text-right w-full md:w-auto">
                   <p className="font-black text-sora-blue mb-2 text-lg">Rp 1.500.000</p>
-                  <button onClick={handlePayPaket} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
+                  <button onClick={() => handlePayPaket('SEMESTER')} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
                 </div>
               </div>
               <div className="border border-gray-200 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center hover:border-sora-blue transition-all group">
@@ -290,7 +327,7 @@ export default function TagihanSiswa() {
                 </div>
                 <div className="text-left md:text-right w-full md:w-auto">
                   <p className="font-black text-sora-blue mb-2 text-lg">Rp 3.000.000</p>
-                  <button onClick={handlePayPaket} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
+                  <button onClick={() => handlePayPaket('TAHUN')} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
                 </div>
               </div>
               <div className="border border-sora-green bg-sora-green/5 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden mt-6 md:mt-4">
@@ -301,7 +338,7 @@ export default function TagihanSiswa() {
                 </div>
                 <div className="text-left md:text-right w-full md:w-auto">
                   <p className="font-black text-sora-green mb-2 text-lg">Rp 9.000.000</p>
-                  <button onClick={handlePayPaket} className="w-full md:w-auto bg-sora-green text-white px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all">Pilih Paket</button>
+                  <button onClick={() => handlePayPaket('LULUS')} className="w-full md:w-auto bg-sora-green text-white px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all">Pilih Paket</button>
                 </div>
               </div>
             </div>

@@ -4,6 +4,8 @@ import { Database, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function MasterDataAdmin() {
   const [data, setData] = useState({ majors: [], grades: [], years: [] });
@@ -11,6 +13,8 @@ export default function MasterDataAdmin() {
   const [newGrade, setNewGrade] = useState('');
   const [newYear, setNewYear] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, title: '', desc: '', action: null });
 
   const fetchData = async () => {
     try {
@@ -20,7 +24,7 @@ export default function MasterDataAdmin() {
       });
       setData(res.data.data);
     } catch {
-      console.error("Gagal memuat data master");
+      toast.error("Gagal memuat data master");
     } finally {
       setLoading(false);
     }
@@ -29,7 +33,10 @@ export default function MasterDataAdmin() {
   useEffect(() => { fetchData(); }, []);
 
   const handleAdd = async (type, value, setter) => {
-    if (!value) return;
+    if (!value) {
+      toast.error("Input tidak boleh kosong");
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${import.meta.env.VITE_API_URL}/master/${type}`, 
@@ -37,23 +44,35 @@ export default function MasterDataAdmin() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setter('');
+      toast.success(`Data master berhasil ditambahkan`);
       fetchData();
     } catch (error) {
-      alert(error.response?.data?.message || "Gagal menambah data");
+      toast.error("Gagal menambah data", { description: error.response?.data?.message || "Terjadi kesalahan sistem" });
     }
   };
 
-  const handleDelete = async (type, id) => {
-    if (!window.confirm("Hapus data ini?")) return;
+  const executeDelete = async (type, id) => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(`${import.meta.env.VITE_API_URL}/master/${type}/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success("Data berhasil dihapus");
       fetchData();
     } catch {
-      alert("Gagal menghapus");
+      toast.error("Gagal menghapus data master");
+    } finally {
+      setConfirmDialog({ ...confirmDialog, isOpen: false });
     }
+  };
+
+  const handleDelete = (type, id) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Hapus Data",
+      desc: "Apakah Anda yakin ingin menghapus data master ini? Penghapusan ini tidak dapat dibatalkan.",
+      action: () => executeDelete(type, id)
+    });
   };
 
   const handleActivateYear = async (id) => {
@@ -62,9 +81,10 @@ export default function MasterDataAdmin() {
       await axios.patch(`${import.meta.env.VITE_API_URL}/master/year/${id}/activate`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success("Tahun ajaran berhasil diaktifkan");
       fetchData();
     } catch {
-      alert("Gagal mengaktifkan tahun ajaran");
+      toast.error("Gagal mengaktifkan tahun ajaran");
     }
   };
 
@@ -137,6 +157,25 @@ export default function MasterDataAdmin() {
           </div>
         </div>
       </div>
+
+      <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, isOpen: false })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{confirmDialog.title}</DialogTitle>
+            <DialogDescription>
+              {confirmDialog.desc}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={confirmDialog.action}>
+              Ya, Lanjutkan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

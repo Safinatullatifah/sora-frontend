@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { toast } from 'sonner';
 
 export default function KalenderAdmin() {
   const [events, setEvents] = useState([]);
@@ -14,6 +15,7 @@ export default function KalenderAdmin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ judul: '', deskripsi: '', tipe: 'Akademik', tanggal: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, id: null });
 
   const fetchKalender = async () => {
     try {
@@ -23,7 +25,7 @@ export default function KalenderAdmin() {
       });
       setEvents(res.data.data);
     } catch {
-      alert("Gagal memuat data kalender");
+      toast.error("Gagal memuat data kalender");
     } finally {
       setIsLoading(false);
     }
@@ -39,27 +41,34 @@ export default function KalenderAdmin() {
       await axios.post(`${import.meta.env.VITE_API_URL}/informasi/kalender`, form, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success("Agenda berhasil ditambahkan");
       setIsModalOpen(false);
       setForm({ judul: '', deskripsi: '', tipe: 'Akademik', tanggal: '' });
       fetchKalender();
     } catch {
-      alert("Gagal menambahkan agenda kalender");
+      toast.error("Gagal menambahkan agenda kalender");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Yakin ingin menghapus agenda ini?")) return;
+  const executeDelete = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${import.meta.env.VITE_API_URL}/informasi/kalender/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/informasi/kalender/${confirmDialog.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success("Agenda berhasil dihapus");
       fetchKalender();
     } catch {
-      alert("Gagal menghapus agenda");
+      toast.error("Gagal menghapus agenda");
+    } finally {
+      setConfirmDialog({ isOpen: false, id: null });
     }
+  };
+
+  const handleDelete = (id) => {
+    setConfirmDialog({ isOpen: true, id });
   };
 
   const getTheme = (type) => {
@@ -158,6 +167,25 @@ export default function KalenderAdmin() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog({ isOpen: false, id: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Agenda</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus agenda kalender ini?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setConfirmDialog({ isOpen: false, id: null })}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={executeDelete}>
+              Ya, Hapus
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

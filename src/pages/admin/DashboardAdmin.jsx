@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAdmin } from '../../context/AdminContext';
 import { TrendingUp, CreditCard, UserCheck, Megaphone, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 function StatCard({ icon, label, value, sub, color }) {
   return (
@@ -30,8 +31,8 @@ export default function DashboardAdmin() {
           headers: { Authorization: `Bearer ${token}` }
         });
         setStats(res.data.data);
-      } catch (error) {
-        console.error("Gagal mengambil data dashboard:", error);
+      } catch {
+        toast.error("Gagal mengambil data statistik dashboard");
       }
     };
     fetchDashboardStats();

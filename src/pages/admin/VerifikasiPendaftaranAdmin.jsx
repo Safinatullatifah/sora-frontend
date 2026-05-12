@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from 'sonner';
 
 export default function VerifikasiPendaftaranAdmin() {
   const [registrations, setRegistrations] = useState([]);
@@ -28,7 +29,7 @@ export default function VerifikasiPendaftaranAdmin() {
       });
       setRegistrations(res.data.data);
     } catch {
-      alert("Gagal memuat data pendaftaran.");
+      toast.error("Gagal memuat data pendaftaran.");
     } finally {
       setIsLoading(false);
     }
@@ -50,12 +51,15 @@ export default function VerifikasiPendaftaranAdmin() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      toast.success(actionType === 'accept' ? "Pendaftar berhasil diterima" : "Pendaftar berhasil ditolak");
       setIsActionOpen(false);
       setPassword('');
       setAlasan('');
       fetchRegistrations();
     } catch (error) {
-      alert(error.response?.data?.message || `Gagal melakukan ${actionType}`);
+      toast.error("Gagal memproses pendaftaran", { 
+        description: error.response?.data?.message || `Terjadi kesalahan sistem` 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -86,7 +90,7 @@ export default function VerifikasiPendaftaranAdmin() {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch {
-      alert("Gagal memuat berkas. Format tidak didukung atau berkas rusak.");
+      toast.error("Gagal memuat berkas", { description: "Format tidak didukung atau berkas rusak." });
     }
   };
 

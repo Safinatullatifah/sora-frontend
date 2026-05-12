@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { toast } from 'sonner';
 
 export default function VerifikasiPembayaranAdmin() {
   const [transactions, setTransactions] = useState([]);
@@ -23,7 +24,7 @@ export default function VerifikasiPembayaranAdmin() {
       });
       setTransactions(res.data.data);
     } catch {
-      alert("Gagal memuat data transaksi manual.");
+      toast.error("Gagal memuat data transaksi manual.");
     } finally {
       setIsLoading(false);
     }
@@ -43,10 +44,13 @@ export default function VerifikasiPembayaranAdmin() {
         { action: actionType },
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      toast.success(actionType === 'accept' ? "Pembayaran berhasil diverifikasi" : "Pembayaran ditolak");
       setIsActionOpen(false);
       fetchTransactions();
     } catch (error) {
-      alert(error.response?.data?.message || `Gagal memproses transaksi.`);
+      toast.error("Gagal memproses transaksi", { 
+        description: error.response?.data?.message || "Terjadi kesalahan sistem" 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -61,7 +65,7 @@ export default function VerifikasiPembayaranAdmin() {
   const openFileSafe = (base64Data) => {
     try {
       if (!base64Data) {
-        alert("Bukti transfer tidak tersedia.");
+        toast.error("Bukti transfer tidak tersedia.");
         return;
       }
       const arr = base64Data.split(',');
@@ -81,7 +85,7 @@ export default function VerifikasiPembayaranAdmin() {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch {
-      alert("Gagal memuat bukti transfer. Format tidak didukung.");
+      toast.error("Gagal memuat bukti transfer", { description: "Format tidak didukung atau berkas korup." });
     }
   };
 

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from 'sonner';
 
 export default function CekStatusPage() {
   const navigate = useNavigate();
@@ -16,6 +17,14 @@ export default function CekStatusPage() {
 
   const handleSearch = async (e) => {
     e.preventDefault();
+
+    if (nisn.length !== 10) {
+      toast.error("Validasi Gagal", {
+        description: "NISN harus berjumlah tepat 10 digit."
+      });
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setResult(null);
@@ -25,8 +34,15 @@ export default function CekStatusPage() {
         params: { nisn, email }
       });
       setResult(response.data.data);
+      toast.success("Pencarian Berhasil", {
+        description: "Data pendaftaran Anda ditemukan."
+      });
     } catch (err) {
-      setError(err.response?.data?.message || 'Terjadi kesalahan saat mencari data');
+      const errMsg = err.response?.data?.message || 'Terjadi kesalahan saat mencari data';
+      setError(errMsg);
+      toast.error("Pencarian Gagal", {
+        description: errMsg
+      });
     } finally {
       setIsLoading(false);
     }
@@ -64,7 +80,7 @@ export default function CekStatusPage() {
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="space-y-2">
               <Label>NISN</Label>
-              <Input required value={nisn} onChange={e => setNisn(e.target.value)} placeholder="Masukkan 10 digit NISN..." />
+              <Input required value={nisn} onChange={e => setNisn(e.target.value)} placeholder="Masukkan 10 digit NISN..." minLength={10} maxLength={10} />
             </div>
             <div className="space-y-2">
               <Label>Email</Label>

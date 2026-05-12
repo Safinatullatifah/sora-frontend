@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Settings2, Save, Globe, Phone, Mail, MapPin, Building2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function PengaturanSistemAdmin() {
   const [config, setConfig] = useState({
@@ -22,8 +23,8 @@ export default function PengaturanSistemAdmin() {
       if (response.data.data) {
         setConfig(response.data.data);
       }
-    } catch (error) {
-      console.error(error);
+    } catch {
+      toast.error("Gagal memuat pengaturan sistem");
     } finally {
       setIsLoading(false);
     }
@@ -46,9 +47,9 @@ export default function PengaturanSistemAdmin() {
       await axios.put(`${import.meta.env.VITE_API_URL}/system-config`, config, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      alert('Pengaturan sistem berhasil diperbarui!');
+      toast.success('Pengaturan sistem berhasil diperbarui!');
     } catch {
-      alert('Gagal memperbarui pengaturan sistem.');
+      toast.error('Gagal memperbarui pengaturan sistem.');
     } finally {
       setIsSaving(false);
     }

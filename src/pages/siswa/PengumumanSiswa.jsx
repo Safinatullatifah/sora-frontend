@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Megaphone, Bell, Calendar, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function PengumumanSiswa() {
   const [pengumuman, setPengumuman] = useState([]);
@@ -15,7 +16,7 @@ export default function PengumumanSiswa() {
         });
         setPengumuman(res.data.data);
       } catch {
-        console.error("Gagal memuat pengumuman");
+        toast.error("Gagal memuat pengumuman sekolah");
       } finally {
         setIsLoading(false);
       }

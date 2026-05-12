@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSiswa } from '../../context/SiswaContext';
 import { User, Mail, GraduationCap, MapPin, Phone, Save, CheckCircle2, Loader2, Layers, Lock, KeyRound, Eye, EyeOff, BookOpen, Users } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function ProfilSiswa() {
   const { profil, fetchProfil } = useSiswa();
@@ -16,6 +17,7 @@ export default function ProfilSiswa() {
     no_hp: '',
     alamat: '',
     nama_ortu: '',
+    email_ortu: '',
     no_hp_ortu: ''
   });
 
@@ -38,6 +40,7 @@ export default function ProfilSiswa() {
         no_hp: profil.no_hp || '',
         alamat: profil.alamat || profil.orang_tua?.alamat || '',
         nama_ortu: profil.orang_tua?.nama_lengkap || '',
+        email_ortu: profil.orang_tua?.email || '',
         no_hp_ortu: profil.orang_tua?.no_hp || ''
       });
     }
@@ -57,9 +60,9 @@ export default function ProfilSiswa() {
 
       await fetchProfil();
       setIsEditing(false);
-      alert("Profil berhasil diperbarui!");
+      toast.success("Profil berhasil diperbarui!");
     } catch {
-      alert("Gagal memperbarui profil.");
+      toast.error("Gagal memperbarui profil.");
     } finally {
       setIsLoading(false);
     }
@@ -69,7 +72,7 @@ export default function ProfilSiswa() {
     e.preventDefault();
     
     if (passForm.newPassword !== passForm.confirmPassword) {
-      alert("Password baru dan konfirmasi tidak cocok!");
+      toast.error("Validasi Gagal", { description: "Password baru dan konfirmasi tidak cocok!" });
       return;
     }
 
@@ -85,11 +88,11 @@ export default function ProfilSiswa() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      alert("Password berhasil diubah! Silakan gunakan password baru pada login berikutnya.");
+      toast.success("Berhasil", { description: "Password berhasil diubah! Silakan gunakan password baru pada login berikutnya." });
       setPassForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (error) {
       const msg = error.response?.data?.message || "Gagal mengubah password. Pastikan password lama benar.";
-      alert(msg);
+      toast.error("Gagal", { description: msg });
     } finally {
       setIsPassLoading(false);
     }
@@ -174,7 +177,7 @@ export default function ProfilSiswa() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Email Aktif</label>
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Email Aktif Siswa</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                     <input 
@@ -247,6 +250,10 @@ export default function ProfilSiswa() {
                   </div>
                 </div>
 
+                <div className="space-y-2 md:col-span-2 mt-2">
+                  <h4 className="text-[10px] font-black text-sora-blue uppercase tracking-[0.2em] mb-2 border-b pb-2">Data Orang Tua</h4>
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Nama Orang Tua</label>
                   <div className="relative">
@@ -274,6 +281,21 @@ export default function ProfilSiswa() {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Email Orang Tua</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                      type="email" 
+                      disabled={!isEditing}
+                      value={formData.email_ortu}
+                      onChange={(e) => setFormData({...formData, email_ortu: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
               </div>
 
               {isEditing && (
@@ -299,14 +321,21 @@ export default function ProfilSiswa() {
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-50 text-sora-blue rounded-xl shrink-0"><Mail size={18} /></div>
                 <div className="overflow-hidden">
-                  <p className="text-[9px] font-black text-gray-400 uppercase">Email Akun</p>
+                  <p className="text-[9px] font-black text-gray-400 uppercase">Email Siswa</p>
                   <p className="text-xs font-bold text-sora-navy truncate">{formData.email || '-'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-50 text-purple-500 rounded-xl shrink-0"><Mail size={18} /></div>
+                <div className="overflow-hidden">
+                  <p className="text-[9px] font-black text-gray-400 uppercase">Email Orang Tua</p>
+                  <p className="text-xs font-bold text-sora-navy truncate">{formData.email_ortu || '-'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-orange-50 text-orange-500 rounded-xl shrink-0"><Phone size={18} /></div>
                 <div>
-                  <p className="text-[9px] font-black text-gray-400 uppercase">WhatsApp</p>
+                  <p className="text-[9px] font-black text-gray-400 uppercase">WhatsApp Siswa</p>
                   <p className="text-xs font-bold text-sora-navy">{formData.no_hp || '-'}</p>
                 </div>
               </div>

@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { toast } from 'sonner';
 
 export default function BroadcastAdmin() {
   const [pengumuman, setPengumuman] = useState([]);
@@ -14,6 +15,7 @@ export default function BroadcastAdmin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({ judul: '', pesan: '', tipe: 'Informasi' });
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, id: null });
 
   const fetchPengumuman = async () => {
     try {
@@ -23,7 +25,7 @@ export default function BroadcastAdmin() {
       });
       setPengumuman(res.data.data);
     } catch {
-      alert("Gagal memuat data pengumuman");
+      toast.error("Gagal memuat data pengumuman");
     } finally {
       setIsLoading(false);
     }
@@ -41,27 +43,34 @@ export default function BroadcastAdmin() {
       await axios.post(`${import.meta.env.VITE_API_URL}/informasi/broadcast`, form, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success("Pengumuman berhasil ditambahkan");
       setIsModalOpen(false);
       setForm({ judul: '', pesan: '', tipe: 'Informasi' });
       fetchPengumuman();
     } catch {
-      alert("Gagal menambahkan pengumuman");
+      toast.error("Gagal menambahkan pengumuman");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Yakin ingin menghapus pengumuman ini?")) return;
+  const executeDelete = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${import.meta.env.VITE_API_URL}/informasi/broadcast/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/informasi/broadcast/${confirmDialog.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      toast.success("Pengumuman berhasil dihapus");
       fetchPengumuman();
     } catch {
-      alert("Gagal menghapus pengumuman");
+      toast.error("Gagal menghapus pengumuman");
+    } finally {
+      setConfirmDialog({ isOpen: false, id: null });
     }
+  };
+
+  const handleDelete = (id) => {
+    setConfirmDialog({ isOpen: true, id });
   };
 
   return (
@@ -143,6 +152,25 @@ export default function BroadcastAdmin() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog({ isOpen: false, id: null })}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Hapus Pengumuman</DialogTitle>
+            <DialogDescription>
+              Apakah Anda yakin ingin menghapus pengumuman ini? Data yang dihapus tidak dapat dikembalikan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setConfirmDialog({ isOpen: false, id: null })}>
+              Batal
+            </Button>
+            <Button variant="destructive" onClick={executeDelete}>
+              Ya, Hapus
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

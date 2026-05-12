@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, Suspense, lazy } from 'react';
+import { Toaster } from '@/components/ui/sonner';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
@@ -83,6 +84,7 @@ export default function App() {
           <Route path="/ortu/*" element={user?.role === 'ortu' ? <Navigate to="/siswa" replace /> : <Navigate to="/login" replace />} />
           <Route path="/" element={<Navigate to={user?.role === 'admin' ? "/admin" : (user?.role === 'siswa' || user?.role === 'ortu') ? "/siswa" : "/login"} replace />} />
         </Routes>
+        <Toaster position="top-center" />
       </Suspense>
     </BrowserRouter>
   );
