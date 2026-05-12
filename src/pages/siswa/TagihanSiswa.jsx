@@ -1,12 +1,22 @@
 import { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { useSiswa } from '../../context/SiswaContext';
-import { Layers, FileText, X } from 'lucide-react';
+import { Layers, FileText, X, CreditCard, UploadCloud } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function TagihanSiswa() {
   const { profil, tagihan, fetchTagihanData, totalNunggak } = useSiswa();
   const [kategoriAktif, setKategoriAktif] = useState('Semua');
   const [isModalPaketOpen, setIsModalPaketOpen] = useState(false);
+  
+  const [isPaymentOptionOpen, setIsPaymentOptionOpen] = useState(false);
+  const [selectedTagihan, setSelectedTagihan] = useState(null);
+  const [isManualUpload, setIsManualUpload] = useState(false);
+  const [fileBase64, setFileBase64] = useState(null);
+  const [uploadingManual, setUploadingManual] = useState(false);
 
   useEffect(() => {
     fetchTagihanData();
@@ -14,27 +24,30 @@ export default function TagihanSiswa() {
 
   const filteredTagihan = useMemo(() => {
     if (kategoriAktif === 'Semua') return tagihan;
-    return tagihan.filter(t => t.kategori === kategoriAktif);
+    if (kategoriAktif === 'Belum Bayar') return tagihan.filter(t => t.status !== 'Lunas');
+    if (kategoriAktif === 'Riwayat Lunas') return tagihan.filter(t => t.status === 'Lunas');
+    
+    // Mapping kategori UI ke Enum Database (DU)
+    const dbKat = kategoriAktif === 'Dana Ujian' ? 'DU' : kategoriAktif.toUpperCase();
+    return tagihan.filter(t => t.kategori?.toUpperCase() === dbKat || t.kategori === kategoriAktif);
   }, [tagihan, kategoriAktif]);
 
-  const handlePay = async (item, e) => {
-    const btn = e.currentTarget;
-    const originalText = btn.innerHTML;
-    
-    try {
-      btn.innerHTML = "PROSES..."; 
-      btn.disabled = true;
+  const openPaymentModal = (t) => {
+    setSelectedTagihan(t);
+    setIsPaymentOptionOpen(true);
+    setIsManualUpload(false);
+    setFileBase64(null);
+  };
 
+  const handlePayMidtrans = async () => {
+    try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/invoices/${item.id}/pay`, 
+        `${import.meta.env.VITE_API_URL}/invoices/${selectedTagihan.id}/pay`, 
         {},
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
 
       const snapToken = response.data.data?.token || response.data.token;
-
-      btn.innerHTML = originalText; 
-      btn.disabled = false;
 
       if (!snapToken) {
         alert("Gagal mendapatkan token pembayaran dari server.");
@@ -63,9 +76,35 @@ export default function TagihanSiswa() {
         alert("Sistem Midtrans belum terinisialisasi.");
       }
     } catch {
-      btn.innerHTML = originalText; 
-      btn.disabled = false;
       alert("Terjadi kesalahan sistem saat menghubungi server pembayaran.");
+    }
+  };
+
+  const handleFileManualChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => setFileBase64(reader.result);
+      reader.onerror = () => alert("Gagal membaca file");
+    }
+  };
+
+  const submitManualPayment = async () => {
+    setUploadingManual(true);
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/invoices/${selectedTagihan.id}/manual-pay`, 
+        { bukti_transfer_url: fileBase64 },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+      alert("Bukti transfer berhasil dikirim. Menunggu verifikasi Admin.");
+      setIsPaymentOptionOpen(false);
+      fetchTagihanData();
+    } catch (error) {
+      alert(error.response?.data?.message || "Gagal mengirim bukti transfer.");
+    } finally {
+      setUploadingManual(false);
     }
   };
 
@@ -80,7 +119,7 @@ export default function TagihanSiswa() {
       nisn: profil.nisn,
       kelas: profil.kelas,
       namaTagihan: item.nama,
-      kategori: item.kategori,
+      kategori: item.kategori === 'DU' ? 'Dana Ujian' : item.kategori,
       nominal: item.nominal,
       tanggal: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
     };
@@ -108,7 +147,7 @@ export default function TagihanSiswa() {
       </div>
 
       <div className="flex overflow-x-auto gap-2 bg-white p-2 rounded-2xl border shadow-sm custom-scrollbar pb-2">
-        {['Semua', 'SPP', 'Daftar Ulang', 'Buku', 'Seragam'].map(kat => (
+        {['Semua', 'Belum Bayar', 'Riwayat Lunas', 'SPP', 'Dana Ujian', 'Buku', 'Seragam'].map(kat => (
           <button key={kat} onClick={() => setKategoriAktif(kat)} className={`px-5 md:px-6 py-2 md:py-3 rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${kategoriAktif === kat ? 'bg-sora-navy text-white shadow-lg' : 'bg-transparent text-gray-400 hover:bg-gray-50 hover:text-sora-navy'}`}>
             {kat}
           </button>
@@ -128,14 +167,14 @@ export default function TagihanSiswa() {
               </tr>
             </thead>
             <tbody>
-              {filteredTagihan.length === 0 ? <tr><td colSpan="5" className="text-center p-10 text-gray-400 font-bold italic text-sm">Tidak ada tagihan.</td></tr> : null}
+              {filteredTagihan.length === 0 ? <tr><td colSpan="5" className="text-center p-10 text-gray-400 font-bold italic text-sm">Tidak ada tagihan dalam kategori ini.</td></tr> : null}
               {filteredTagihan.map(t => (
                 <tr key={t.id} className={`border-b border-gray-50 transition-all ${t.status === 'Lunas' ? 'bg-gray-50/50 opacity-80 hover:opacity-100' : 'hover:bg-sora-bg/50'}`}>
                   <td className="p-4 md:p-6">
                     <p className="text-sm font-black text-sora-navy">{t.nama}</p>
                     <div className="flex gap-2 mt-1">
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{t.id}</span>
-                      <span className="text-[9px] font-black text-sora-blue bg-blue-50 px-2 rounded uppercase">{t.kategori}</span>
+                      <span className="text-[9px] font-black text-sora-blue bg-blue-50 px-2 rounded uppercase">{t.kategori === 'DU' ? 'Dana Ujian' : t.kategori}</span>
                     </div>
                   </td>
                   <td className="p-4 md:p-6 text-xs font-bold text-gray-500">{t.tglBatas}</td>
@@ -147,7 +186,7 @@ export default function TagihanSiswa() {
                   </td>
                   <td className="p-4 md:p-6 text-center">
                     {t.status === 'Belum Bayar' ? (
-                      <button onClick={(e) => handlePay(t, e)} className="w-full bg-sora-blue text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-md shadow-sora-blue/20">Bayar</button>
+                      <button onClick={() => openPaymentModal(t)} className="w-full bg-sora-blue text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-md shadow-sora-blue/20">Bayar</button>
                     ) : t.status === 'Lunas' ? (
                       <button onClick={() => handleCetakStruk(t)} className="w-full bg-white border border-gray-200 text-sora-navy px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sora-blue transition-all flex items-center justify-center gap-2"><FileText size={12}/> Struk</button>
                     ) : (
@@ -161,6 +200,67 @@ export default function TagihanSiswa() {
         </div>
       </div>
 
+      <Dialog open={isPaymentOptionOpen} onOpenChange={setIsPaymentOptionOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
+          </DialogHeader>
+
+          {!isManualUpload ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div
+                className="border border-gray-200 rounded-2xl p-6 text-center cursor-pointer hover:border-sora-blue hover:bg-blue-50 transition-all group"
+                onClick={() => {
+                  setIsPaymentOptionOpen(false);
+                  handlePayMidtrans();
+                }}
+              >
+                <div className="bg-sora-blue text-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
+                   <CreditCard />
+                </div>
+                <h4 className="font-black text-sora-navy mb-1">Otomatis</h4>
+                <p className="text-xs font-medium text-gray-500">Virtual Account, QRIS, Alfamart</p>
+              </div>
+
+              <div
+                className="border border-gray-200 rounded-2xl p-6 text-center cursor-pointer hover:border-sora-green hover:bg-green-50 transition-all group"
+                onClick={() => setIsManualUpload(true)}
+              >
+                <div className="bg-sora-green text-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
+                   <UploadCloud />
+                </div>
+                <h4 className="font-black text-sora-navy mb-1">Transfer Manual</h4>
+                <p className="text-xs font-medium text-gray-500">Upload bukti struk transfer</p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 mt-4">
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-sm font-black text-sora-navy mb-2">Instruksi Transfer:</p>
+                <ul className="text-xs font-medium text-gray-500 list-disc ml-4 space-y-1">
+                  <li>Bank BCA: <strong>1234567890</strong> a.n SORA Foundation</li>
+                  <li>Bank Mandiri: <strong>0987654321</strong> a.n SORA Foundation</li>
+                  <li>Total Tagihan: <strong className="text-sora-navy">Rp {selectedTagihan?.nominal?.toLocaleString('id-ID')}</strong></li>
+                </ul>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Upload Bukti Transfer</Label>
+                <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileManualChange} />
+              </div>
+
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setIsManualUpload(false)}>Kembali</Button>
+                <Button disabled={!fileBase64 || uploadingManual} onClick={submitManualPayment} className="bg-sora-green hover:bg-sora-green/80 text-white">
+                  {uploadingManual ? 'Mengunggah...' : 'Kirim Bukti'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Paket Pelunasan */}
       {isModalPaketOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-sora-navy/60 backdrop-blur-sm" onClick={() => setIsModalPaketOpen(false)}></div>

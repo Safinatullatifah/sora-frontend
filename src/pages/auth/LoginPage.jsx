@@ -157,14 +157,23 @@ export default function LoginPage({ onLogin }) {
               </form>
 
               <div className="mt-8 text-center border-t border-gray-100 pt-6">
-                <p className="text-xs font-bold text-gray-400 mb-2">Calon siswa baru?</p>
-                <button 
-                  type="button"
-                  onClick={() => navigate('/register')}
-                  className="text-[10px] font-black text-sora-blue hover:text-sora-navy transition-colors uppercase tracking-widest bg-blue-50 px-4 py-2 rounded-xl"
-                >
-                  Daftar PPDB Online
-                </button>
+                <p className="text-xs font-bold text-gray-400 mb-4">Calon siswa baru?</p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => navigate('/register')}
+                    className="w-full sm:w-auto text-[10px] font-black text-sora-blue hover:text-white transition-colors uppercase tracking-widest bg-blue-50 hover:bg-sora-blue px-5 py-3 rounded-xl"
+                  >
+                    Daftar PPDB Online
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => navigate('/cek-status')}
+                    className="w-full sm:w-auto text-[10px] font-black text-gray-500 hover:text-sora-navy transition-colors uppercase tracking-widest bg-gray-50 hover:bg-gray-200 px-5 py-3 rounded-xl"
+                  >
+                    Cek Status & Cetak
+                  </button>
+                </div>
               </div>
             </div>
           ) : (

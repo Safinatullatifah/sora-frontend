@@ -1,19 +1,106 @@
-import { useAdmin } from '../../context/AdminContext';
-import { Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Download, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 export default function LaporanAdmin() {
-  const { dataSiswa, rekapKeuangan } = useAdmin();
+  const [dataSiswa, setDataSiswa] = useState([]);
+  const [rekapKeuangan, setRekapKeuangan] = useState({
+    totalTagihan: 0,
+    totalLunas: 0,
+    totalNunggak: 0,
+    kategoriRekap: { SPP: 0, DU: 0, BUKU: 0, SERAGAM: 0, LAINNYA: 0 }
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLaporanData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const statsRes = await axios.get(`${import.meta.env.VITE_API_URL}/admin/dashboard/stats`, { headers });
+        const stats = statsRes.data.data.invoices;
+
+        const studentsRes = await axios.get(`${import.meta.env.VITE_API_URL}/students?limit=1000`, { headers });
+        const students = studentsRes.data.data;
+
+        let rekapKategori = { SPP: 0, DU: 0, BUKU: 0, SERAGAM: 0, LAINNYA: 0 };
+        
+        const mappedStudents = students.map(s => {
+          const invoices = s.invoices || [];
+          let totalLunasSiswa = 0;
+          let totalNunggakSiswa = 0;
+          let totalTagihanSiswa = 0;
+
+          invoices.forEach(inv => {
+            totalTagihanSiswa += inv.nominal;
+            if (inv.status === 'PAID') {
+              totalLunasSiswa += inv.nominal;
+              const jenis = inv.jenis_tagihan || 'LAINNYA';
+              if (rekapKategori[jenis] !== undefined) {
+                rekapKategori[jenis] += inv.nominal;
+              } else {
+                rekapKategori['LAINNYA'] += inv.nominal;
+              }
+            } else {
+              totalNunggakSiswa += inv.nominal;
+            }
+          });
+
+          return {
+            id: s.id,
+            nisn: s.nisn,
+            nama: s.nama_lengkap,
+            kelas: s.kelas,
+            statusSiswa: s.status === 'AKTIF' ? 'Aktif' : 'Keluar',
+            totalTagihan: totalTagihanSiswa,
+            lunas: totalLunasSiswa,
+            nunggak: totalNunggakSiswa
+          };
+        });
+
+        setDataSiswa(mappedStudents);
+        setRekapKeuangan({
+          totalTagihan: stats.total_nominal || 0,
+          totalLunas: stats.total_paid || 0,
+          totalNunggak: stats.total_unpaid || 0,
+          kategoriRekap: rekapKategori
+        });
+
+      } catch (error) {
+        console.error("Gagal mengambil data laporan:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLaporanData();
+  }, []);
 
   const handleExport = (jenis) => {
     const dataUntukExcel = dataSiswa.map((s, index) => {
-      const lunas = s.tagihan.filter(t => t.status === 'Lunas').reduce((a, c) => a + c.nominal, 0);
-      const nunggak = s.tagihan.filter(t => t.status === 'Belum Bayar').reduce((a, c) => a + c.nominal, 0);
-      return { "No": index + 1, "NISN": s.nisn, "Nama Siswa": s.nama, "Kelas": s.kelas, "Status Siswa": s.statusSiswa, "Total Lunas (Rp)": lunas, "Sisa Tunggakan (Rp)": nunggak };
+      return { 
+        "No": index + 1, 
+        "NISN": s.nisn, 
+        "Nama Siswa": s.nama, 
+        "Kelas": s.kelas, 
+        "Status Siswa": s.statusSiswa, 
+        "Total Lunas (Rp)": s.lunas, 
+        "Sisa Tunggakan (Rp)": s.nunggak 
+      };
     });
     
     dataUntukExcel.push({}); 
-    dataUntukExcel.push({ "No": "", "NISN": "", "Nama Siswa": "TOTAL KESELURUHAN", "Kelas": "", "Status Siswa": "", "Total Lunas (Rp)": rekapKeuangan.totalLunas, "Sisa Tunggakan (Rp)": rekapKeuangan.totalNunggak });
+    dataUntukExcel.push({ 
+      "No": "", 
+      "NISN": "", 
+      "Nama Siswa": "TOTAL KESELURUHAN", 
+      "Kelas": "", 
+      "Status Siswa": "", 
+      "Total Lunas (Rp)": rekapKeuangan.totalLunas, 
+      "Sisa Tunggakan (Rp)": rekapKeuangan.totalNunggak 
+    });
     
     const worksheet = XLSX.utils.json_to_sheet(dataUntukExcel);
     worksheet['!cols'] = [ { wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 } ];
@@ -23,6 +110,14 @@ export default function LaporanAdmin() {
     const tanggal = new Date().toLocaleDateString('id-ID').replace(/\//g, '-');
     XLSX.writeFile(workbook, `Laporan_SORA_${jenis}_${tanggal}.xlsx`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <Loader2 className="animate-spin text-sora-blue" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -45,47 +140,49 @@ export default function LaporanAdmin() {
         {Object.entries(rekapKeuangan.kategoriRekap).map(([key, val]) => (
           <div key={key} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm text-center">
             <p className="text-[10px] font-black text-sora-gray uppercase tracking-widest mb-2">{key}</p>
-            <p className="text-lg font-black text-sora-green">Rp {(val/1000).toLocaleString('id-ID')}k</p>
+            <p className="text-lg font-black text-sora-green">Rp {val.toLocaleString('id-ID')}</p>
           </div>
         ))}
       </div>
 
       <div className="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden mt-6">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-[10px] font-black text-sora-gray uppercase tracking-widest border-b">
-            <tr>
-              <th className="p-6">NISN</th>
-              <th className="p-6">Nama Siswa</th>
-              <th className="p-6 text-right">Total Tagihan</th>
-              <th className="p-6 text-right text-sora-green">Terbayar (Lunas)</th>
-              <th className="p-6 text-right text-red-500">Sisa Tunggakan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dataSiswa.map(s => {
-              const total = s.tagihan.reduce((acc, curr) => acc + curr.nominal, 0);
-              const lunas = s.tagihan.filter(t => t.status === 'Lunas').reduce((acc, curr) => acc + curr.nominal, 0);
-              const nunggak = total - lunas;
-              return (
-                <tr key={s.id} className="border-b hover:bg-sora-bg/50">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left whitespace-nowrap">
+            <thead className="bg-gray-50 text-[10px] font-black text-sora-gray uppercase tracking-widest border-b">
+              <tr>
+                <th className="p-6">NISN</th>
+                <th className="p-6">Nama Siswa</th>
+                <th className="p-6 text-right">Total Tagihan</th>
+                <th className="p-6 text-right text-sora-green">Terbayar (Lunas)</th>
+                <th className="p-6 text-right text-red-500">Sisa Tunggakan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dataSiswa.map(s => (
+                <tr key={s.id} className="border-b hover:bg-sora-bg/50 transition-colors">
                   <td className="p-6 font-mono text-xs">{s.nisn}</td>
                   <td className="p-6 font-black text-sora-navy">{s.nama}</td>
-                  <td className="p-6 text-right font-bold">Rp {total.toLocaleString('id-ID')}</td>
-                  <td className="p-6 text-right font-black text-sora-green">Rp {lunas.toLocaleString('id-ID')}</td>
-                  <td className="p-6 text-right font-black text-red-500">Rp {nunggak.toLocaleString('id-ID')}</td>
+                  <td className="p-6 text-right font-bold">Rp {s.totalTagihan.toLocaleString('id-ID')}</td>
+                  <td className="p-6 text-right font-black text-sora-green">Rp {s.lunas.toLocaleString('id-ID')}</td>
+                  <td className="p-6 text-right font-black text-red-500">Rp {s.nunggak.toLocaleString('id-ID')}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-          <tfoot className="bg-sora-navy text-white font-black">
-            <tr>
-              <td colSpan="2" className="p-6 text-right uppercase tracking-widest text-[10px]">TOTAL KESELURUHAN</td>
-              <td className="p-6 text-right">Rp {rekapKeuangan.totalTagihan.toLocaleString('id-ID')}</td>
-              <td className="p-6 text-right text-sora-green">Rp {rekapKeuangan.totalLunas.toLocaleString('id-ID')}</td>
-              <td className="p-6 text-right text-red-400">Rp {rekapKeuangan.totalNunggak.toLocaleString('id-ID')}</td>
-            </tr>
-          </tfoot>
-        </table>
+              ))}
+              {dataSiswa.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="p-6 text-center text-xs font-bold text-gray-400">Belum ada data siswa.</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot className="bg-sora-navy text-white font-black">
+              <tr>
+                <td colSpan="2" className="p-6 text-right uppercase tracking-widest text-[10px]">TOTAL KESELURUHAN</td>
+                <td className="p-6 text-right">Rp {rekapKeuangan.totalTagihan.toLocaleString('id-ID')}</td>
+                <td className="p-6 text-right text-sora-green">Rp {rekapKeuangan.totalLunas.toLocaleString('id-ID')}</td>
+                <td className="p-6 text-right text-red-400">Rp {rekapKeuangan.totalNunggak.toLocaleString('id-ID')}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </div>
     </div>
   );

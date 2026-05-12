@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import axios from 'axios';
-import { Search, Eye, Edit3, Trash2, Plus, Receipt, X, Printer, Mail, GraduationCap } from 'lucide-react';
+import { Search, Eye, Edit3, Trash2, Plus, Receipt, X, Printer, Mail, GraduationCap, KeyRound, Loader2 } from 'lucide-react';
 
 export default function DataSiswaAdmin() {
   const [dataSiswa, setDataSiswa] = useState([]);
+  const [masterData, setMasterData] = useState({ majors: [], grades: [], years: [] });
   const [searchQuery, setSearchQuery] = useState('');
   const [filterKelas, setFilterKelas] = useState('Semua');
   const [filterStatus, setFilterStatus] = useState('Semua');
@@ -14,7 +15,10 @@ export default function DataSiswaAdmin() {
   const itemsPerPage = 10;
 
   const [selectedSiswa, setSelectedSiswa] = useState(null); 
-  const [formSiswa, setFormSiswa] = useState({ id: null, nisn: '', nama: '', kelas: '', telp: '', statusSiswa: 'Aktif' });
+  const [formSiswa, setFormSiswa] = useState({ 
+    id: null, nisn: '', nama: '', kelas: '', jurusan: '', angkatan: '', 
+    email: '', no_hp: '', alamat: '', nama_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
+  });
   const [isModalSiswaOpen, setIsModalSiswaOpen] = useState(false);
 
   const [isModalMassalOpen, setIsModalMassalOpen] = useState(false);
@@ -22,10 +26,24 @@ export default function DataSiswaAdmin() {
 
   const [dataPrintStruk, setDataPrintStruk] = useState(null);
   const [dataPrintTanggungan, setDataPrintTanggungan] = useState(null);
+  const [isResetting, setIsResetting] = useState(null);
 
   const getAuthHeaders = useCallback(() => {
     return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
   }, []);
+
+  const fetchMasterData = useCallback(async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/master`, getAuthHeaders());
+      setMasterData({
+        majors: res.data.data.majors,
+        grades: res.data.data.grades,
+        years: res.data.data.years
+      });
+    } catch {
+      console.error("Gagal memuat master data");
+    }
+  }, [getAuthHeaders]);
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -39,15 +57,21 @@ export default function DataSiswaAdmin() {
         nisn: item.nisn,
         nama: item.nama_lengkap,
         kelas: item.kelas,
-        statusSiswa: 'Aktif',
+        jurusan: item.jurusan || '',
+        angkatan: item.angkatan || '',
+        email: item.user?.email || '',
+        no_hp: item.no_hp || '',
+        alamat: item.alamat || item.orang_tua?.alamat || '',
+        nama_ortu: item.orang_tua?.nama_lengkap || '',
+        no_hp_ortu: item.orang_tua?.no_hp || '',
+        statusSiswa: item.status === 'AKTIF' ? 'Aktif' : 'Keluar',
         tagihan: item.invoices ? item.invoices.map(inv => ({
           id: inv.id,
           nama: inv.judul_tagihan,
-          kategori: inv.bulan,
+          kategori: inv.jenis_tagihan,
           nominal: inv.nominal,
           status: inv.status === 'PAID' ? 'Lunas' : 'Belum Bayar'
-        })) : [],
-        emailOrtu: item.user?.email || ''
+        })) : []
       }));
       
       setDataSiswa(mappedData);
@@ -58,11 +82,22 @@ export default function DataSiswaAdmin() {
   }, [currentPage, itemsPerPage, searchQuery, getAuthHeaders]);
 
   useEffect(() => {
+    fetchMasterData();
+  }, [fetchMasterData]);
+
+  useEffect(() => {
     const debounceTimer = setTimeout(() => {
       fetchStudents();
     }, 300);
     return () => clearTimeout(debounceTimer);
   }, [fetchStudents]);
+
+  const kelasTersedia = useMemo(() => {
+    if (!formSiswa.jurusan) return []; 
+    return masterData.grades.filter(g => 
+      g.name.toUpperCase().includes(formSiswa.jurusan.toUpperCase())
+    );
+  }, [masterData.grades, formSiswa.jurusan]);
 
   const handleSelectSiswa = async (siswa) => {
     try {
@@ -73,20 +108,24 @@ export default function DataSiswaAdmin() {
         nisn: item.nisn,
         nama: item.nama_lengkap,
         kelas: item.kelas,
-        statusSiswa: 'Aktif',
+        jurusan: item.jurusan || '',
+        angkatan: item.angkatan || '',
+        email: item.user?.email || '',
+        no_hp: item.no_hp || '',
+        alamat: item.alamat || item.orang_tua?.alamat || '',
+        nama_ortu: item.orang_tua?.nama_lengkap || '',
+        no_hp_ortu: item.orang_tua?.no_hp || '',
+        statusSiswa: item.status === 'AKTIF' ? 'Aktif' : 'Keluar',
         tagihan: item.invoices ? item.invoices.map(inv => ({
           id: inv.id,
           nama: inv.judul_tagihan,
-          kategori: inv.bulan,
+          kategori: inv.jenis_tagihan,
           nominal: inv.nominal,
           status: inv.status === 'PAID' ? 'Lunas' : 'Belum Bayar'
-        })) : [],
-        emailOrtu: item.user?.email || ''
+        })) : []
       });
       if (window.innerWidth < 1024) {
-        setTimeout(() => {
-          document.getElementById('detail-siswa-panel')?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        setTimeout(() => document.getElementById('detail-siswa-panel')?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     } catch {
       alert("Gagal mengambil detail siswa");
@@ -94,29 +133,45 @@ export default function DataSiswaAdmin() {
   };
 
   const handleSaveSiswa = async () => {
-    if (!formSiswa.nisn || !formSiswa.nama) return;
+    if (!formSiswa.nisn || !formSiswa.nama || !formSiswa.kelas || !formSiswa.jurusan || !formSiswa.angkatan || !formSiswa.email) {
+      alert("Harap lengkapi semua data wajib siswa (termasuk Email, Angkatan, Jurusan, dan Kelas)!");
+      return;
+    }
 
     try {
       if (formSiswa.id) {
         await axios.put(`${import.meta.env.VITE_API_URL}/students/${formSiswa.id}`, {
           nisn: formSiswa.nisn,
           nama_lengkap: formSiswa.nama,
-          kelas: formSiswa.kelas
+          kelas: formSiswa.kelas,
+          jurusan: formSiswa.jurusan,
+          angkatan: formSiswa.angkatan,
+          email: formSiswa.email,
+          no_hp: formSiswa.no_hp,
+          alamat: formSiswa.alamat,
+          nama_ortu: formSiswa.nama_ortu,
+          no_hp_ortu: formSiswa.no_hp_ortu
         }, getAuthHeaders());
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL}/auth/register`, {
-          email: `${formSiswa.nisn}@sora.com`,
+          email: formSiswa.email,
           password: 'password123',
           nisn: formSiswa.nisn,
           nama_lengkap: formSiswa.nama,
-          kelas: formSiswa.kelas
+          kelas: formSiswa.kelas,
+          jurusan: formSiswa.jurusan,
+          angkatan: formSiswa.angkatan,
+          no_hp: formSiswa.no_hp,
+          alamat: formSiswa.alamat,
+          nama_orang_tua: formSiswa.nama_ortu,
+          hp_orang_tua: formSiswa.no_hp_ortu
         });
       }
       setIsModalSiswaOpen(false);
       fetchStudents();
       if (selectedSiswa?.id === formSiswa.id) handleSelectSiswa(formSiswa);
-    } catch {
-      alert("Gagal menyimpan data siswa");
+    } catch (error) {
+      alert(error.response?.data?.message || "Gagal menyimpan data siswa");
     }
   };
 
@@ -133,14 +188,19 @@ export default function DataSiswaAdmin() {
   };
 
   const openModalSiswa = (siswa = null) => {
-    if (siswa) setFormSiswa({ ...siswa });
-    else setFormSiswa({ id: null, nisn: '', nama: '', kelas: '', telp: '', statusSiswa: 'Aktif' });
+    if (siswa) {
+      setFormSiswa({ ...siswa });
+    } else {
+      setFormSiswa({ 
+        id: null, nisn: '', nama: '', kelas: '', jurusan: '', angkatan: '', 
+        email: '', no_hp: '', alamat: '', nama_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
+      });
+    }
     setIsModalSiswaOpen(true);
   };
 
   const handleGenerateTagihanMassal = async () => {
     if (!formMassal.namaTagihan || !formMassal.nominal) return;
-
     try {
       const nominalAkhir = formMassal.isSemester ? parseInt(formMassal.nominal, 10) * 6 : parseInt(formMassal.nominal, 10);
       const namaAkhir = formMassal.isSemester ? `${formMassal.namaTagihan} (1 Semester)` : formMassal.namaTagihan;
@@ -148,7 +208,7 @@ export default function DataSiswaAdmin() {
       await axios.post(`${import.meta.env.VITE_API_URL}/invoices/massal`, {
         targetKelas: formMassal.targetKelas,
         judul_tagihan: namaAkhir,
-        bulan: formMassal.kategori,
+        jenis_tagihan: formMassal.kategori,
         nominal: nominalAkhir
       }, getAuthHeaders());
 
@@ -157,29 +217,6 @@ export default function DataSiswaAdmin() {
       fetchStudents();
     } catch {
       alert("Gagal membuat tagihan massal");
-    }
-  };
-
-  const handleEmailOrtu = async (siswa, tagihan) => {
-    if (!siswa.emailOrtu || siswa.emailOrtu === '-') return;
-  
-    const isConfirm = window.confirm(`Kirim pengingat tagihan ke ${siswa.emailOrtu}?`);
-    if (!isConfirm) return;
-  
-    try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/email/tagihan-ortu`, 
-        {
-          emailOrtu: siswa.emailOrtu,
-          namaSiswa: siswa.nama,
-          nominal: tagihan.nominal,
-          bulan: tagihan.nama
-        },
-        getAuthHeaders()
-      );
-      alert("Email pengingat berhasil dikirim!");
-    } catch {
-      alert("Gagal mengirim email pengingat.");
     }
   };
 
@@ -197,11 +234,24 @@ export default function DataSiswaAdmin() {
     setTimeout(() => { window.print(); setDataPrintTanggungan(null); }, 150);
   };
 
+  const handleResetPassword = async (id) => {
+    if (window.confirm('Reset password siswa ini menjadi default (123456)?')) {
+      setIsResetting(id);
+      try {
+        await axios.post(`${import.meta.env.VITE_API_URL}/admin/reset-password-student/${id}`, {}, getAuthHeaders());
+        alert('Password berhasil direset ke default (123456)');
+      } catch {
+        alert('Gagal mereset password.');
+      } finally {
+        setIsResetting(null);
+      }
+    }
+  };
+
   const filteredList = useMemo(() => {
     return dataSiswa.filter(s => {
-      const klsPrefix = s.kelas ? s.kelas.split(" ")[0] : ""; 
       const isNunggak = s.tagihan.some(t => t.status === 'Belum Bayar');
-      return (filterKelas === 'Semua' || klsPrefix === filterKelas) && 
+      return (filterKelas === 'Semua' || s.kelas === filterKelas) && 
              (filterStatus === 'Semua' || (filterStatus === 'Belum Lunas' ? isNunggak : !isNunggak)) &&
              (filterStatusSiswa === 'Semua' || s.statusSiswa === filterStatusSiswa);
     });
@@ -212,7 +262,7 @@ export default function DataSiswaAdmin() {
       <div className="bg-white text-black p-10 min-h-screen font-sans">
         <div className="max-w-2xl mx-auto border-2 border-dashed border-gray-300 p-10 rounded-3xl">
           <div className="flex justify-between items-center border-b-2 border-gray-200 pb-6 mb-6">
-            <h1 className="text-2xl font-black uppercase tracking-widest">SMK SORA Digitalization</h1>
+            <h1 className="text-2xl font-black uppercase tracking-widest">SORA Digitalization</h1>
             <div className="text-right">
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Bukti Pembayaran</p>
               <p className="font-bold">{dataPrintStruk.tanggal}</p>
@@ -238,15 +288,15 @@ export default function DataSiswaAdmin() {
     return (
       <div className="bg-white text-black p-10 min-h-screen font-sans max-w-4xl mx-auto">
         <div className="border-b-4 border-black pb-6 mb-8 text-center">
-          <h1 className="text-3xl font-black uppercase tracking-widest">SMK SORA Digitalization</h1>
-          <p className="text-sm">Jl. Teknologi Masa Depan No. 99 | Telp: (031) 123456</p>
+          <h1 className="text-3xl font-black uppercase tracking-widest">SORA Digitalization</h1>
+          <p className="text-sm">Sistem Administrasi Terpadu</p>
         </div>
         <h2 className="text-xl font-bold underline uppercase text-center mb-8">Surat Keterangan Rincian Tanggungan</h2>
         <div className="text-base mb-8">
-          <p>Kepala Tata Usaha menerangkan bahwa:</p>
+          <p>Kepala Administrasi menerangkan bahwa:</p>
           <table className="ml-4 mt-2 font-bold"><tbody>
             <tr><td className="w-40">Nama</td><td>: {dataPrintTanggungan.nama}</td></tr>
-            <tr><td>NISN / Kelas</td><td>: {dataPrintTanggungan.nisn} / {dataPrintTanggungan.kelas}</td></tr>
+            <tr><td>NISN / Kelas</td><td>: {dataPrintTanggungan.nisn} / {dataPrintTanggungan.kelas} {dataPrintTanggungan.jurusan}</td></tr>
           </tbody></table>
           <p className="mt-4">Memiliki rincian tanggungan administrasi hingga tanggal <b>{tgl}</b> sebagai berikut:</p>
         </div>
@@ -271,9 +321,22 @@ export default function DataSiswaAdmin() {
           </div>
           <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
           <div className="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
-            <select value={filterStatusSiswa} onChange={e=>{setFilterStatusSiswa(e.target.value); setCurrentPage(1);}} className="w-full md:w-auto text-[10px] font-bold text-sora-navy bg-sora-bg p-3 md:p-2 rounded-xl md:rounded-lg outline-none border"><option value="Semua">Semua Status</option><option value="Aktif">Aktif</option><option value="Keluar">Keluar / Lulus</option></select>
-            <select value={filterKelas} onChange={e=>{setFilterKelas(e.target.value); setCurrentPage(1);}} className="w-full md:w-auto text-[10px] font-bold text-sora-navy bg-sora-bg p-3 md:p-2 rounded-xl md:rounded-lg outline-none border"><option value="Semua">Semua Kelas</option><option value="X">Kelas X</option><option value="XI">Kelas XI</option></select>
-            <select value={filterStatus} onChange={e=>{setFilterStatus(e.target.value); setCurrentPage(1);}} className="col-span-2 md:col-span-1 w-full md:w-auto text-[10px] font-bold text-sora-navy bg-sora-bg p-3 md:p-2 rounded-xl md:rounded-lg outline-none border"><option value="Semua">Bayar: Semua</option><option value="Belum Lunas">Belum Lunas</option><option value="Lunas">Lunas</option></select>
+            <select value={filterStatusSiswa} onChange={e=>{setFilterStatusSiswa(e.target.value); setCurrentPage(1);}} className="w-full md:w-auto text-[10px] font-bold text-sora-navy bg-sora-bg p-3 md:p-2 rounded-xl md:rounded-lg outline-none border">
+              <option value="Semua">Semua Status</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Keluar">Keluar / Lulus</option>
+            </select>
+            <select value={filterKelas} onChange={e=>{setFilterKelas(e.target.value); setCurrentPage(1);}} className="w-full md:w-auto text-[10px] font-bold text-sora-navy bg-sora-bg p-3 md:p-2 rounded-xl md:rounded-lg outline-none border appearance-none">
+              <option value="Semua">Semua Kelas</option>
+              {masterData.grades.map(g => (
+                <option key={g.id} value={g.name}>{g.name}</option>
+              ))}
+            </select>
+            <select value={filterStatus} onChange={e=>{setFilterStatus(e.target.value); setCurrentPage(1);}} className="col-span-2 md:col-span-1 w-full md:w-auto text-[10px] font-bold text-sora-navy bg-sora-bg p-3 md:p-2 rounded-xl md:rounded-lg outline-none border">
+              <option value="Semua">Bayar: Semua</option>
+              <option value="Belum Lunas">Belum Lunas</option>
+              <option value="Lunas">Lunas</option>
+            </select>
           </div>
         </div>
 
@@ -287,7 +350,7 @@ export default function DataSiswaAdmin() {
               <thead className="bg-gray-50 text-[10px] font-black text-sora-gray uppercase tracking-widest border-b">
                 <tr>
                   <th className="p-4 md:p-6">Siswa</th>
-                  <th className="p-4 md:p-6">Kelas & Status</th>
+                  <th className="p-4 md:p-6">Kelas / Angkatan</th>
                   <th className="p-4 md:p-6">Tunggakan</th>
                   <th className="p-4 md:p-6 text-center">Aksi</th>
                 </tr>
@@ -302,14 +365,16 @@ export default function DataSiswaAdmin() {
                         <p className="text-[10px] text-gray-400 font-mono mt-1">NISN: {s.nisn}</p>
                       </td>
                       <td className="p-4 md:p-6">
-                        <p className="text-xs font-bold text-sora-gray mb-2">{s.kelas}</p>
-                        <span className={`px-2 py-1 rounded text-[9px] font-bold ${s.statusSiswa==='Aktif'?'bg-sora-green/10 text-sora-green':'bg-red-50 text-red-500'}`}>{s.statusSiswa}</span>
+                        <p className="text-xs font-bold text-sora-gray mb-1">{s.kelas} {s.jurusan}</p>
+                        <span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded text-[9px] font-bold mr-2">{s.angkatan || '-'}</span>
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${s.statusSiswa==='Aktif'?'bg-sora-green/10 text-sora-green':'bg-red-50 text-red-500'}`}>{s.statusSiswa}</span>
                       </td>
                       <td className="p-4 md:p-6 text-xs font-black text-red-500">
                         {nunggak > 0 ? `Rp ${nunggak.toLocaleString('id-ID')}` : <span className="text-sora-green">Lunas</span>}
                       </td>
                       <td className="p-4 md:p-6">
                         <div className="flex justify-center gap-1 md:gap-2">
+                          <button onClick={() => handleResetPassword(s.id)} disabled={isResetting === s.id} className="p-2 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors">{isResetting === s.id ? <Loader2 className="animate-spin" size={18}/> : <KeyRound size={18}/>}</button>
                           <button onClick={() => handleSelectSiswa(s)} className="p-2 text-sora-blue hover:bg-sora-blue/10 rounded-lg transition-colors"><Eye size={18}/></button>
                           <button onClick={() => openModalSiswa(s)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"><Edit3 size={18}/></button>
                           <button onClick={() => handleDeleteSiswa(s.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18}/></button>
@@ -331,18 +396,27 @@ export default function DataSiswaAdmin() {
         </div>
       </div>
 
+      {/* Panel Detail Siswa (Kanan) */}
       <div className="lg:col-span-1" id="detail-siswa-panel">
         {selectedSiswa ? (
           <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border border-sora-blue/30 shadow-xl p-6 md:p-8 sticky top-6">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <p className="text-[10px] font-black text-sora-blue uppercase tracking-widest">Detail Keuangan</p>
+                <p className="text-[10px] font-black text-sora-blue uppercase tracking-widest">Detail Keuangan & Biodata</p>
                 <h3 className="text-lg md:text-xl font-black text-sora-navy leading-tight mt-1">{selectedSiswa.nama}</h3>
               </div>
               <button onClick={() => setSelectedSiswa(null)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 transition-colors"><X size={20}/></button>
             </div>
+
+            <div className="mb-6 space-y-3 text-[11px] bg-gray-50 p-5 rounded-2xl border border-gray-100 shadow-inner">
+              <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Email</span><span className="font-bold text-sora-navy">{selectedSiswa.email || '-'}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">WA Siswa</span><span className="font-bold text-sora-navy">{selectedSiswa.no_hp || '-'}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Alamat</span><span className="font-bold text-sora-navy text-right max-w-[180px] truncate">{selectedSiswa.alamat || '-'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 font-medium">Wali / Ortu</span><span className="font-bold text-sora-navy">{selectedSiswa.nama_ortu || '-'} ({selectedSiswa.no_hp_ortu || '-'})</span></div>
+            </div>
+
             <button onClick={() => handleCetakTanggungan(selectedSiswa)} className="w-full mb-6 bg-sora-navy text-white px-4 py-4 md:py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sora-blue shadow-md transition-all active:scale-95"><Printer size={16}/> Cetak Rekap</button>
-            <div className="space-y-4 max-h-[50vh] md:max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
               {selectedSiswa.tagihan.length > 0 ? selectedSiswa.tagihan.map(t => (
                 <div key={t.id} className={`p-4 md:p-5 border rounded-2xl ${t.status === 'Lunas' ? 'bg-sora-green/5 border-sora-green/20' : 'bg-gray-50 border-gray-100'}`}>
                   <div className="flex justify-between items-start mb-3">
@@ -356,12 +430,6 @@ export default function DataSiswaAdmin() {
                     <span className="font-black text-sora-blue text-sm md:text-base">Rp {t.nominal.toLocaleString('id-ID')}</span>
                     {t.status === 'Lunas' && (<button onClick={() => handleCetakStruk(selectedSiswa, t)} className="text-[9px] flex items-center gap-1.5 font-black text-sora-green bg-white border border-sora-green px-3 py-1.5 rounded-lg hover:bg-sora-green hover:text-white transition-all shadow-sm"><Printer size={12}/> Struk</button>)}
                   </div>
-                  {t.status === 'Belum Bayar' && (
-                    <div className="flex gap-2 mt-3 pt-3 border-t border-dashed border-gray-300">
-                      <button onClick={() => handleEmailOrtu(selectedSiswa, t)} className="flex-1 bg-white border text-sora-gray py-2.5 rounded-xl text-[9px] font-black uppercase hover:text-sora-blue hover:border-sora-blue flex justify-center items-center gap-1.5 transition-all shadow-sm"><Mail size={14}/> Kirim Email</button>
-                      <button className="flex-1 bg-orange-500 text-white py-2.5 rounded-xl text-[9px] font-black uppercase hover:bg-orange-600 flex justify-center items-center gap-1.5 transition-all shadow-sm shadow-orange-500/20"><GraduationCap size={14}/> Beasiswa</button>
-                    </div>
-                  )}
                 </div>
               )) : (
                 <p className="text-center text-xs font-bold text-gray-400 mt-10">Belum ada data tagihan</p>
@@ -371,32 +439,97 @@ export default function DataSiswaAdmin() {
         ) : (<div className="h-[400px] md:h-full border-2 border-dashed border-gray-200 rounded-[2rem] md:rounded-[2.5rem] flex flex-col items-center justify-center text-gray-400 p-10 bg-gray-50/50"><Search size={40} className="mb-4 opacity-20"/><p className="text-xs font-bold text-center leading-relaxed">Pilih siswa dari daftar<br/>untuk melihat rincian keuangan.</p></div>)}
       </div>
 
+      {/* Modal Form Siswa */}
       {isModalSiswaOpen && (
         <div className="fixed inset-0 bg-sora-navy/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in duration-300">
+          <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in duration-300">
             <h3 className="text-xl md:text-2xl font-black mb-6 md:mb-8">{formSiswa.id ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}</h3>
-            <div className="space-y-4 md:space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+              
               <div>
                 <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">NISN</label>
                 <input type="text" value={formSiswa.nisn} onChange={e=>setFormSiswa({...formSiswa, nisn: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
               </div>
+              
               <div>
                 <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Nama Lengkap</label>
                 <input type="text" value={formSiswa.nama} onChange={e=>setFormSiswa({...formSiswa, nama: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
               </div>
+
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email Aktif</label>
+                <input type="email" value={formSiswa.email} onChange={e=>setFormSiswa({...formSiswa, email: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">WhatsApp Siswa</label>
+                <input type="text" value={formSiswa.no_hp} onChange={e=>setFormSiswa({...formSiswa, no_hp: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Alamat Lengkap</label>
+                <textarea rows="2" value={formSiswa.alamat} onChange={e=>setFormSiswa({...formSiswa, alamat: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium resize-none"/>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Nama Orang Tua</label>
+                <input type="text" value={formSiswa.nama_ortu} onChange={e=>setFormSiswa({...formSiswa, nama_ortu: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">No HP Orang Tua</label>
+                <input type="text" value={formSiswa.no_hp_ortu} onChange={e=>setFormSiswa({...formSiswa, no_hp_ortu: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div className="md:col-span-2 pt-4 border-t border-gray-100">
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Angkatan / Tahun Ajaran</label>
+                <select value={formSiswa.angkatan} onChange={e=>setFormSiswa({...formSiswa, angkatan: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium appearance-none">
+                  <option value="">Pilih Angkatan</option>
+                  {masterData.years.map(y => (
+                    <option key={y.id} value={y.year}>{y.year} {y.is_active ? '(Aktif)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Jurusan</label>
+                <select 
+                  value={formSiswa.jurusan} 
+                  onChange={e => setFormSiswa({...formSiswa, jurusan: e.target.value, kelas: ''})} 
+                  className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium appearance-none"
+                >
+                  <option value="">Pilih Jurusan</option>
+                  {masterData.majors.map(m => (
+                    <option key={m.id} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Kelas</label>
-                <input type="text" value={formSiswa.kelas} onChange={e=>setFormSiswa({...formSiswa, kelas: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium" placeholder="Contoh: X RPL 1"/>
+                <select 
+                  value={formSiswa.kelas} 
+                  onChange={e=>setFormSiswa({...formSiswa, kelas: e.target.value})} 
+                  disabled={!formSiswa.jurusan}
+                  className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">{formSiswa.jurusan ? 'Pilih Kelas' : 'Pilih Jurusan Dulu'}</option>
+                  {kelasTersedia.map(g => (
+                    <option key={g.id} value={g.name}>{g.name}</option>
+                  ))}
+                </select>
               </div>
+
             </div>
-            <div className="mt-8 md:mt-10 space-y-3">
-              <button onClick={handleSaveSiswa} className="w-full bg-sora-navy text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-sora-blue transition-all shadow-lg active:scale-95">SIMPAN DATA</button>
-              <button onClick={()=>setIsModalSiswaOpen(false)} className="w-full bg-gray-100 text-sora-navy py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">BATAL</button>
+            <div className="mt-8 md:mt-10 flex flex-col md:flex-row gap-3">
+              <button onClick={handleSaveSiswa} className="w-full md:flex-1 bg-sora-navy text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-sora-blue transition-all shadow-lg active:scale-95">SIMPAN DATA</button>
+              <button onClick={()=>setIsModalSiswaOpen(false)} className="w-full md:flex-1 bg-gray-100 text-sora-navy py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">BATAL</button>
             </div>
           </div>
         </div>
       )}
       
+      {/* Modal Tagihan Massal */}
       {isModalMassalOpen && (
         <div className="fixed inset-0 bg-sora-navy/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar animate-in zoom-in duration-300">

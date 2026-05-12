@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSiswa } from '../../context/SiswaContext';
-import { User, Mail, GraduationCap, MapPin, Phone, Save, CheckCircle2, Loader2, Layers } from 'lucide-react';
+import { User, Mail, GraduationCap, MapPin, Phone, Save, CheckCircle2, Loader2, Layers, Lock, KeyRound, Eye, EyeOff, BookOpen, Users } from 'lucide-react';
 
 export default function ProfilSiswa() {
   const { profil, fetchProfil } = useSiswa();
@@ -10,7 +10,21 @@ export default function ProfilSiswa() {
   const [formData, setFormData] = useState({
     nama_lengkap: '',
     nisn: '',
-    kelas: ''
+    kelas: '',
+    jurusan: '',
+    email: '',
+    no_hp: '',
+    alamat: '',
+    nama_ortu: '',
+    no_hp_ortu: ''
+  });
+
+  const [isPassLoading, setIsPassLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [passForm, setPassForm] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -18,7 +32,13 @@ export default function ProfilSiswa() {
       setFormData({
         nama_lengkap: profil.nama_lengkap || '',
         nisn: profil.nisn || '',
-        kelas: profil.kelas || ''
+        kelas: profil.kelas || '',
+        jurusan: profil.jurusan || '',
+        email: profil.user?.email || '',
+        no_hp: profil.no_hp || '',
+        alamat: profil.alamat || profil.orang_tua?.alamat || '',
+        nama_ortu: profil.orang_tua?.nama_lengkap || '',
+        no_hp_ortu: profil.orang_tua?.no_hp || ''
       });
     }
   }, [profil]);
@@ -42,6 +62,36 @@ export default function ProfilSiswa() {
       alert("Gagal memperbarui profil.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      alert("Password baru dan konfirmasi tidak cocok!");
+      return;
+    }
+
+    setIsPassLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      await axios.post(`${import.meta.env.VITE_API_URL}/auth/change-password`, {
+        oldPassword: passForm.oldPassword,
+        newPassword: passForm.newPassword
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert("Password berhasil diubah! Silakan gunakan password baru pada login berikutnya.");
+      setPassForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error) {
+      const msg = error.response?.data?.message || "Gagal mengubah password. Pastikan password lama benar.";
+      alert(msg);
+    } finally {
+      setIsPassLoading(false);
     }
   };
 
@@ -70,7 +120,7 @@ export default function ProfilSiswa() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h2 className="text-xl md:text-2xl font-black text-sora-navy">{profil.nama_lengkap}</h2>
-              <p className="text-xs md:text-sm font-bold text-gray-400">Siswa • {profil.kelas}</p>
+              <p className="text-xs md:text-sm font-bold text-gray-400">Siswa • {profil.kelas} {profil.jurusan}</p>
             </div>
             <div className="flex items-center gap-2 bg-sora-green/10 text-sora-green px-4 py-2 rounded-xl border border-sora-green/20 w-max">
               <CheckCircle2 size={16} />
@@ -123,7 +173,35 @@ export default function ProfilSiswa() {
                   </div>
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Email Aktif</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                      type="email" 
+                      disabled={!isEditing}
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">WhatsApp Siswa</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                      type="text" 
+                      disabled={!isEditing}
+                      value={formData.no_hp}
+                      onChange={(e) => setFormData({...formData, no_hp: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
                   <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Kelas</label>
                   <div className="relative">
                     <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
@@ -132,6 +210,66 @@ export default function ProfilSiswa() {
                       disabled={!isEditing}
                       value={formData.kelas}
                       onChange={(e) => setFormData({...formData, kelas: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Jurusan</label>
+                  <div className="relative">
+                    <BookOpen className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <select 
+                      disabled={!isEditing}
+                      value={formData.jurusan}
+                      onChange={(e) => setFormData({...formData, jurusan: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60 appearance-none"
+                    >
+                      <option value="">Pilih Jurusan...</option>
+                      <option value="IPA">IPA (Ilmu Pengetahuan Alam)</option>
+                      <option value="IPS">IPS (Ilmu Pengetahuan Sosial)</option>
+                      <option value="BAHASA">Bahasa</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Alamat Lengkap</label>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-4 text-gray-400" size={16} />
+                    <textarea 
+                      disabled={!isEditing}
+                      value={formData.alamat}
+                      onChange={(e) => setFormData({...formData, alamat: e.target.value})}
+                      rows="3"
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60 resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">Nama Orang Tua</label>
+                  <div className="relative">
+                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                      type="text" 
+                      disabled={!isEditing}
+                      value={formData.nama_ortu}
+                      onChange={(e) => setFormData({...formData, nama_ortu: e.target.value})}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-sora-gray uppercase tracking-widest ml-1">No HP Orang Tua</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input 
+                      type="text" 
+                      disabled={!isEditing}
+                      value={formData.no_hp_ortu}
+                      onChange={(e) => setFormData({...formData, no_hp_ortu: e.target.value})}
                       className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm disabled:opacity-60"
                     />
                   </div>
@@ -162,24 +300,80 @@ export default function ProfilSiswa() {
                 <div className="p-3 bg-blue-50 text-sora-blue rounded-xl shrink-0"><Mail size={18} /></div>
                 <div className="overflow-hidden">
                   <p className="text-[9px] font-black text-gray-400 uppercase">Email Akun</p>
-                  <p className="text-xs font-bold text-sora-navy truncate">{profil.user?.email || '-'}</p>
+                  <p className="text-xs font-bold text-sora-navy truncate">{formData.email || '-'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-orange-50 text-orange-500 rounded-xl shrink-0"><Phone size={18} /></div>
                 <div>
                   <p className="text-[9px] font-black text-gray-400 uppercase">WhatsApp</p>
-                  <p className="text-xs font-bold text-sora-navy">0812-3456-7890</p>
+                  <p className="text-xs font-bold text-sora-navy">{formData.no_hp || '-'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-green-50 text-sora-green rounded-xl shrink-0"><MapPin size={18} /></div>
                 <div>
                   <p className="text-[9px] font-black text-gray-400 uppercase">Lokasi</p>
-                  <p className="text-xs font-bold text-sora-navy">Jawa Timur, ID</p>
+                  <p className="text-xs font-bold text-sora-navy">{formData.alamat || '-'}</p>
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-[2rem] md:rounded-[2.5rem] border shadow-sm p-6 md:p-8">
+            <h3 className="text-[10px] font-black text-sora-gray uppercase tracking-widest mb-6">Keamanan Akun</h3>
+            <form onSubmit={handleUpdatePassword} className="space-y-5">
+              <div className="space-y-2">
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type={showPass ? "text" : "password"}
+                    required
+                    value={passForm.oldPassword}
+                    onChange={(e) => setPassForm({...passForm, oldPassword: e.target.value})}
+                    placeholder="Password Lama"
+                    className="w-full pl-12 pr-10 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm"
+                  />
+                  <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-sora-blue">
+                    {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type={showPass ? "text" : "password"}
+                    required
+                    value={passForm.newPassword}
+                    onChange={(e) => setPassForm({...passForm, newPassword: e.target.value})}
+                    placeholder="Password Baru"
+                    className="w-full pl-12 pr-10 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type={showPass ? "text" : "password"}
+                    required
+                    value={passForm.confirmPassword}
+                    onChange={(e) => setPassForm({...passForm, confirmPassword: e.target.value})}
+                    placeholder="Konfirmasi Password Baru"
+                    className="w-full pl-12 pr-10 py-3 bg-gray-50 rounded-xl border border-transparent focus:bg-white focus:border-sora-blue outline-none transition-all font-medium text-sm"
+                  />
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                disabled={isPassLoading}
+                className="w-full bg-sora-bg text-sora-navy border border-sora-blue/20 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-sora-navy hover:text-white transition-all disabled:opacity-50"
+              >
+                {isPassLoading ? <Loader2 className="animate-spin" size={14} /> : <Save size={14} />}
+                Ganti Password
+              </button>
+            </form>
           </div>
         </div>
       </div>

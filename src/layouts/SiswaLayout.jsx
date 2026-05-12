@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CreditCard, User, LogOut, Bell, Loader2, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CreditCard, User, LogOut, Bell, Loader2, Menu, X, FileBadge2, Megaphone, Calendar as CalendarIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { SiswaProvider } from "../context/SiswaProvider";
 import { useSiswa } from "../context/SiswaContext";
@@ -33,6 +33,9 @@ function SiswaLayoutContent({ onLogout, userRole }) {
     const path = location.pathname.split('/').pop();
     if (path === 'siswa') return 'Dashboard';
     if (path === 'profil') return 'Pengaturan Akun';
+    if (path === 'kartu-ujian') return 'Kartu Ujian';
+    if (path === 'pengumuman') return 'Pengumuman';
+    if (path === 'kalender') return 'Kalender Akademik';
     return path.replace('-', ' ');
   };
 
@@ -50,12 +53,12 @@ function SiswaLayoutContent({ onLogout, userRole }) {
   const namaSiswa = profil.nama_lengkap || profil.nama || 'Siswa';
 
   return (
-    <div className="flex h-screen bg-sora-bg font-sans overflow-hidden text-left relative">
+    <div className="flex h-screen bg-sora-bg font-sans overflow-hidden text-left relative print:bg-white">
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMenu}></div>
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden print:hidden" onClick={closeMenu}></div>
       )}
 
-      <aside className={`fixed md:relative z-50 w-72 h-full bg-white shadow-xl flex flex-col transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 border-r border-gray-100`}>
+      <aside className={`fixed md:relative z-50 w-72 h-full bg-white shadow-xl flex flex-col transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 border-r border-gray-100 print:hidden`}>
         <div className="p-8 flex items-center justify-between border-b border-gray-50">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-sora-blue rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-lg shadow-sora-blue/20">S</div>
@@ -79,11 +82,16 @@ function SiswaLayoutContent({ onLogout, userRole }) {
             </div>
           </div>
         </div>
+        
         <nav className="flex-1 p-6 space-y-2 pt-4 overflow-y-auto">
           <MenuBtn to="/siswa" end icon={<LayoutDashboard size={20}/>} label="Dashboard" onClick={closeMenu} />
           <MenuBtn to="/siswa/tagihan" icon={<CreditCard size={20}/>} label="Keuangan & Tagihan" onClick={closeMenu} />
+          <MenuBtn to="/siswa/kartu-ujian" icon={<FileBadge2 size={20}/>} label="Kartu Ujian" onClick={closeMenu} />
+          <MenuBtn to="/siswa/pengumuman" icon={<Megaphone size={20}/>} label="Pengumuman" onClick={closeMenu} />
+          <MenuBtn to="/siswa/kalender" icon={<CalendarIcon size={20}/>} label="Kalender Akademik" onClick={closeMenu} />
           {!isOrangTua && <MenuBtn to="/siswa/profil" icon={<User size={20}/>} label="Pengaturan Akun" onClick={closeMenu} />}
         </nav>
+        
         <div className="p-6">
           <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 py-4 bg-red-50 text-red-500 rounded-2xl hover:bg-red-500 hover:text-white transition-all text-xs font-black uppercase tracking-widest border border-red-100">
             <LogOut size={18}/> Keluar
@@ -91,8 +99,8 @@ function SiswaLayoutContent({ onLogout, userRole }) {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden relative z-10 w-full">
-        <header className="bg-white px-6 md:px-10 py-6 flex justify-between items-center border-b shadow-sm z-30">
+      <main className="flex-1 flex flex-col overflow-hidden relative z-10 w-full print:overflow-visible">
+        <header className="bg-white px-6 md:px-10 py-6 flex justify-between items-center border-b shadow-sm z-30 print:hidden">
           <div className="flex items-center gap-4">
              <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-sora-navy p-2 bg-gray-50 rounded-xl">
               <Menu size={24} />
@@ -121,7 +129,7 @@ function SiswaLayoutContent({ onLogout, userRole }) {
             </div>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar print:p-0 print:overflow-visible">
           <Outlet />
         </div>
       </main>

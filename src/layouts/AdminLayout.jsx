@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Calendar, FileSpreadsheet, Printer, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Calendar, FileSpreadsheet, Printer, Menu, X, History, Settings, UserCheck, CreditCard, Database } from 'lucide-react';
 import { AdminProvider } from "../context/AdminProvider";
 import { useAdmin } from "../context/AdminContext";
 import * as XLSX from 'xlsx';
@@ -21,6 +21,9 @@ function AdminLayoutContent({ onLogout }) {
   const getPageTitle = () => {
     const path = location.pathname.split('/').pop();
     if (path === 'admin') return 'Dashboard';
+    if (path === 'verifikasi-ppdb') return 'Verifikasi PPDB';
+    if (path === 'verifikasi-pembayaran') return 'Transfer Manual';
+    if (path === 'master') return 'Data Master';
     return path.replace('-', ' ');
   };
 
@@ -48,7 +51,7 @@ function AdminLayoutContent({ onLogout }) {
         <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={closeMenu}></div>
       )}
 
-      <aside className={`fixed md:relative z-50 w-72 h-full bg-sora-navy text-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
+      <aside className={`fixed md:relative z-50 w-72 h-full bg-sora-navy text-white flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 print:hidden`}>
         <div className="p-8 flex items-center justify-between border-b border-white/5">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-sora-blue rounded-xl flex items-center justify-center font-black text-2xl">S</div>
@@ -63,10 +66,15 @@ function AdminLayoutContent({ onLogout }) {
         </div>
         <nav className="flex-1 p-6 space-y-2 overflow-y-auto custom-scrollbar">
           <MenuBtn to="/admin" end icon={<LayoutDashboard size={20}/>} label="Dashboard" onClick={closeMenu} />
+          <MenuBtn to="/admin/verifikasi-ppdb" icon={<UserCheck size={20}/>} label="Verifikasi PPDB" onClick={closeMenu} />
+          <MenuBtn to="/admin/verifikasi-pembayaran" icon={<CreditCard size={20}/>} label="Transfer Manual" onClick={closeMenu} />
           <MenuBtn to="/admin/siswa" icon={<Users size={20}/>} label="Data Siswa" onClick={closeMenu} />
+          <MenuBtn to="/admin/master" icon={<Database size={20}/>} label="Data Master" onClick={closeMenu} />
           <MenuBtn to="/admin/laporan" icon={<FileSpreadsheet size={20}/>} label="Laporan Keuangan" onClick={closeMenu} />
           <MenuBtn to="/admin/broadcast" icon={<Megaphone size={20}/>} label="Broadcast" onClick={closeMenu} />
           <MenuBtn to="/admin/kalender" icon={<Calendar size={20}/>} label="Kalender Akademik" onClick={closeMenu} />
+          <MenuBtn to="/admin/audit" icon={<History size={20}/>} label="Log Audit" onClick={closeMenu} />
+          <MenuBtn to="/admin/pengaturan" icon={<Settings size={20}/>} label="Pengaturan Sistem" onClick={closeMenu} />
         </nav>
         <div className="p-6">
           <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 py-4 bg-red-500/10 text-red-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all text-xs font-black uppercase tracking-widest">
