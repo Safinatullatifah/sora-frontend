@@ -12,16 +12,22 @@ export default function TagihanSiswa() {
   const { profil, tagihan, fetchTagihanData, totalNunggak } = useSiswa();
   const [kategoriAktif, setKategoriAktif] = useState('Semua');
   const [isModalPaketOpen, setIsModalPaketOpen] = useState(false);
-  
   const [isPaymentOptionOpen, setIsPaymentOptionOpen] = useState(false);
   const [selectedTagihan, setSelectedTagihan] = useState(null);
   const [isManualUpload, setIsManualUpload] = useState(false);
   const [fileBase64, setFileBase64] = useState(null);
   const [uploadingManual, setUploadingManual] = useState(false);
+  const [loadingStruk, setLoadingStruk] = useState(false);
 
   useEffect(() => {
     fetchTagihanData();
   }, [fetchTagihanData]);
+
+  useEffect(() => {
+    if (profil) {
+      console.log('Profil siswa:', profil);
+    }
+  }, [profil]);
 
   const filteredTagihan = useMemo(() => {
     if (kategoriAktif === 'Semua') return tagihan;
@@ -152,17 +158,24 @@ export default function TagihanSiswa() {
   };
 
   const handleCetakStruk = (item) => {
+    if (!profil) {
+      toast.error("Data siswa sedang dimuat, tunggu sebentar.");
+      return;
+    }
+
     const dataStruk = {
-      namaSiswa: profil.nama,
-      nisn: profil.nisn,
-      kelas: profil.kelas,
+      namaSiswa: profil?.nama_lengkap || profil?.nama || 'Siswa',
+      nisn: profil?.nisn || '-',
+      kelas: profil?.kelas || '-',
       namaTagihan: item.nama,
       kategori: item.kategori === 'DU' ? 'Dana Ujian' : item.kategori,
       nominal: item.nominal,
       tanggal: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })
     };
-    localStorage.setItem('printStrukData', JSON.stringify(dataStruk));
-    window.open('/print-laporan', '_blank');
+
+    localStorage.setItem('printStrukTagihanData', JSON.stringify(dataStruk));
+    window.open('/print-struk-tagihan', '_blank');
+    setLoadingStruk(false);
   };
 
   return (
@@ -226,7 +239,7 @@ export default function TagihanSiswa() {
                     {t.status === 'Belum Bayar' ? (
                       <button onClick={() => openPaymentModal(t)} className="w-full bg-sora-blue text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-md shadow-sora-blue/20">Bayar</button>
                     ) : t.status === 'Lunas' ? (
-                      <button onClick={() => handleCetakStruk(t)} className="w-full bg-white border border-gray-200 text-sora-navy px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sora-blue transition-all flex items-center justify-center gap-2"><FileText size={12}/> Struk</button>
+                      <button onClick={() => handleCetakStruk(t)} disabled={loadingStruk} className="w-full bg-white border border-gray-200 text-sora-navy px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sora-blue transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><FileText size={12}/> {loadingStruk ? 'Memproses...' : 'Struk'}</button>
                     ) : (
                       <span className="text-[10px] text-gray-400 font-bold italic">Diproses...</span>
                     )}

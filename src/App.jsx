@@ -6,6 +6,7 @@ const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const CekStatusPage = lazy(() => import('./pages/auth/CekStatusPage'));
 const PrintLaporan = lazy(() => import('./pages/PrintLaporan'));
+const PrintStrukTagihan = lazy(() => import('./pages/PrintStrukTagihan'));
 
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const DashboardAdmin = lazy(() => import('./pages/admin/DashboardAdmin'));
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/cek-status" element={<CekStatusPage />} />
           <Route path="/print-laporan" element={<PrintLaporan />} />
+          <Route path="/print-struk-tagihan" element={<PrintStrukTagihan />} />
 
           <Route path="/admin" element={user?.role === 'admin' ? <AdminLayout onLogout={handleLogout} /> : <Navigate to="/login" replace />}>
             <Route index element={<DashboardAdmin />} />
