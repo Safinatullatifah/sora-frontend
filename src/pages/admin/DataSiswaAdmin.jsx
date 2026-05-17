@@ -34,7 +34,8 @@ export default function DataSiswaAdmin() {
     jenis_tagihan: 'SPP',
     nominal: '',
     bulan: '',
-    tahun: new Date().getFullYear().toString()
+    tahun: new Date().getFullYear().toString(),
+    tanggal_jatuh_tempo: ''
   });
 
   const [dataPrintStruk, setDataPrintStruk] = useState(null);
@@ -236,11 +237,15 @@ export default function DataSiswaAdmin() {
 
   const handleSubmitInvoice = async (e) => {
     e.preventDefault();
-    if (!formInvoice.judul_tagihan || !formInvoice.nominal) {
-      toast.error("Validasi Gagal", { description: "Judul tagihan dan nominal wajib diisi!" });
+    if (!formInvoice.judul_tagihan || !formInvoice.nominal || !formInvoice.tanggal_jatuh_tempo) {
+      toast.error("Validasi Gagal", { description: "Judul tagihan, nominal, dan batas pembayaran wajib diisi!" });
       return;
     }
     setIsSubmittingInvoice(true);
+    
+    // Ubah format tanggal (YYYY-MM-DD) menjadi ISO-8601 (YYYY-MM-DDTHH:mm:ss.sssZ)
+    const isoDate = new Date(formInvoice.tanggal_jatuh_tempo).toISOString();
+
     try {
       if (invoiceMode === 'massal') {
         await axios.post(`${import.meta.env.VITE_API_URL}/invoices/massal/create`, {
@@ -249,7 +254,8 @@ export default function DataSiswaAdmin() {
           jenis_tagihan: formInvoice.jenis_tagihan,
           nominal: parseInt(formInvoice.nominal, 10),
           bulan: formInvoice.bulan,
-          tahun: parseInt(formInvoice.tahun, 10)
+          tahun: parseInt(formInvoice.tahun, 10),
+          tanggal_jatuh_tempo: isoDate
         }, getAuthHeaders());
         toast.success("Tagihan massal berhasil diterbitkan");
       } else {
@@ -264,7 +270,8 @@ export default function DataSiswaAdmin() {
           jenis_tagihan: formInvoice.jenis_tagihan,
           nominal: parseInt(formInvoice.nominal, 10),
           bulan: formInvoice.bulan,
-          tahun: parseInt(formInvoice.tahun, 10)
+          tahun: parseInt(formInvoice.tahun, 10),
+          tanggal_jatuh_tempo: isoDate
         }, getAuthHeaders());
         toast.success("Tagihan individu berhasil diterbitkan");
       }
@@ -273,7 +280,8 @@ export default function DataSiswaAdmin() {
         ...formInvoice,
         judul_tagihan: '',
         nominal: '',
-        bulan: ''
+        bulan: '',
+        tanggal_jatuh_tempo: ''
       });
       fetchStudents();
       if (selectedSiswa && invoiceMode === 'individu' && formInvoice.student_id === selectedSiswa.id) {
@@ -693,6 +701,11 @@ export default function DataSiswaAdmin() {
                   <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Tahun</label>
                   <input type="number" name="tahun" required value={formInvoice.tahun} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Batas Pembayaran (Jatuh Tempo)</label>
+                <input type="date" name="tanggal_jatuh_tempo" required value={formInvoice.tanggal_jatuh_tempo} onChange={handleInvoiceChange} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
               </div>
 
               <div className="mt-8 pt-4 space-y-3">

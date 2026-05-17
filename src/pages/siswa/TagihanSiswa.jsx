@@ -23,12 +23,6 @@ export default function TagihanSiswa() {
     fetchTagihanData();
   }, [fetchTagihanData]);
 
-  useEffect(() => {
-    if (profil) {
-      console.log('Profil siswa:', profil);
-    }
-  }, [profil]);
-
   const filteredTagihan = useMemo(() => {
     if (kategoriAktif === 'Semua') return tagihan;
     if (kategoriAktif === 'Belum Bayar') return tagihan.filter(t => t.status !== 'Lunas');
@@ -163,6 +157,7 @@ export default function TagihanSiswa() {
       return;
     }
 
+    setLoadingStruk(true);
     const dataStruk = {
       namaSiswa: profil?.nama_lengkap || profil?.nama || 'Siswa',
       nisn: profil?.nisn || '-',
@@ -224,7 +219,7 @@ export default function TagihanSiswa() {
                   <td className="p-4 md:p-6">
                     <p className="text-sm font-black text-sora-navy">{t.nama}</p>
                     <div className="flex gap-2 mt-1">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{t.id}</span>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{t.id.slice(0,8)}...</span>
                       <span className="text-[9px] font-black text-sora-blue bg-blue-50 px-2 rounded uppercase">{t.kategori === 'DU' ? 'Dana Ujian' : t.kategori}</span>
                     </div>
                   </td>

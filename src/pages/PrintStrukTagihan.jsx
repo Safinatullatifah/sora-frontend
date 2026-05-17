@@ -4,6 +4,8 @@ import { Printer, ArrowLeft } from 'lucide-react';
 export default function PrintStrukTagihan() {
   const [strukData, setStrukData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [strukNumber] = useState(() => `STK-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+  const [printDate] = useState(() => new Date().toLocaleString('id-ID'));
 
   useEffect(() => {
     const loadData = () => {
@@ -13,7 +15,7 @@ export default function PrintStrukTagihan() {
           const parsed = JSON.parse(savedData);
           setStrukData(parsed);
         } catch {
-          console.error("Error parsing struk data");
+          setStrukData(null);
         }
       }
       setLoading(false);
@@ -50,7 +52,6 @@ export default function PrintStrukTagihan() {
   }
 
   if (!strukData.namaSiswa || strukData.namaSiswa === 'Siswa') {
-    console.log('Struk data:', strukData);
     return (
       <div className="p-10 text-center font-bold text-gray-500 max-w-md mx-auto">
         <p className="mb-4">Data siswa tidak lengkap</p>
@@ -69,10 +70,6 @@ export default function PrintStrukTagihan() {
       </div>
     );
   }
-
-  const generateStrukNumber = () => {
-    return `STK-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-  };
 
   return (
     <div className="bg-white text-black p-10 font-sans max-w-2xl mx-auto relative">
@@ -113,7 +110,7 @@ export default function PrintStrukTagihan() {
       <div className="text-center mb-8">
         <h2 className="text-lg font-bold uppercase">Struk Pembayaran</h2>
         <div className="border-t-2 border-b-2 border-black my-4 py-4">
-          <p className="text-xs font-bold">No. Struk: {generateStrukNumber()}</p>
+          <p className="text-xs font-bold">No. Struk: {strukNumber}</p>
           <p className="text-xs">
             Tanggal: {strukData.tanggal}
           </p>
@@ -171,7 +168,7 @@ export default function PrintStrukTagihan() {
         <p className="text-gray-500 text-[10px]">
           Dicetak pada:
           {' '}
-          {new Date().toLocaleString('id-ID')}
+          {printDate}
         </p>
       </div>
     </div>
