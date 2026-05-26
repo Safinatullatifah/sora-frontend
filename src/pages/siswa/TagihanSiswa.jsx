@@ -18,6 +18,7 @@ export default function TagihanSiswa() {
   const [fileBase64, setFileBase64] = useState(null);
   const [uploadingManual, setUploadingManual] = useState(false);
   const [loadingStruk, setLoadingStruk] = useState(false);
+  const [jumlahBulan, setJumlahBulan] = useState(1);
 
   useEffect(() => {
     fetchTagihanData();
@@ -80,11 +81,16 @@ export default function TagihanSiswa() {
     }
   };
 
-  const handlePayPaket = async (paketType) => {
+  const handlePayPaket = async () => {
+    if (jumlahBulan < 1) {
+      toast.error("Jumlah bulan tidak valid.");
+      return;
+    }
+
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/invoices/paket`,
-        { paket: paketType },
+        { jumlahBulan },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
 
@@ -141,11 +147,11 @@ export default function TagihanSiswa() {
         { bukti_transfer_url: fileBase64 },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
-      toast.success("Berhasil", { description: "Bukti transfer berhasil dikirim. Menunggu verifikasi Admin." });
+      toast.success("Berhasil", { description: "Kwitansi berhasil dikirim. Menunggu verifikasi Admin." });
       setIsPaymentOptionOpen(false);
       fetchTagihanData();
     } catch (error) {
-      toast.error("Gagal mengirim bukti", { description: error.response?.data?.message || "Terjadi kesalahan sistem." });
+      toast.error("Gagal mengirim kwitansi", { description: error.response?.data?.message || "Terjadi kesalahan sistem." });
     } finally {
       setUploadingManual(false);
     }
@@ -181,8 +187,8 @@ export default function TagihanSiswa() {
           <p className="text-xs font-bold text-gray-400 mt-1">Pantau dan bayar tagihan sekolah Anda di sini.</p>
         </div>
         <div className="flex flex-row md:flex-row items-center justify-between md:justify-end gap-4 w-full md:w-auto bg-white md:bg-transparent p-4 md:p-0 rounded-2xl md:rounded-none border md:border-none shadow-sm md:shadow-none">
-          <button onClick={() => setIsModalPaketOpen(true)} className="bg-sora-navy text-white px-4 md:px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
-            <Layers size={14}/> Bayar Paket
+          <button onClick={() => { setJumlahBulan(1); setIsModalPaketOpen(true); }} className="bg-sora-navy text-white px-4 md:px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue transition-all shadow-lg flex items-center gap-2 whitespace-nowrap">
+            <Layers size={14}/> Bayar Paket SPP
           </button>
           <div className="hidden md:block w-px h-10 bg-gray-200"></div>
           <div className="text-right">
@@ -275,30 +281,31 @@ export default function TagihanSiswa() {
                 <div className="bg-sora-green text-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
                    <UploadCloud />
                 </div>
-                <h4 className="font-black text-sora-navy mb-1">Transfer Manual</h4>
-                <p className="text-xs font-medium text-gray-500">Upload bukti struk transfer</p>
+                <h4 className="font-black text-sora-navy mb-1">Upload Kwitansi Cash</h4>
+                <p className="text-xs font-medium text-gray-500">Upload foto kwitansi dari tata usaha</p>
               </div>
             </div>
           ) : (
             <div className="space-y-4 mt-4">
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-sm font-black text-sora-navy mb-2">Instruksi Transfer:</p>
+                <p className="text-sm font-black text-sora-navy mb-2">Instruksi Upload Kwitansi:</p>
                 <ul className="text-xs font-medium text-gray-500 list-disc ml-4 space-y-1">
-                  <li>Bank BCA: <strong>1234567890</strong> a.n SORA Foundation</li>
-                  <li>Bank Mandiri: <strong>0987654321</strong> a.n SORA Foundation</li>
+                  <li>Lakukan pembayaran secara tunai langsung ke bagian Tata Usaha sekolah.</li>
+                  <li>Minta bukti kwitansi pembayaran resmi.</li>
+                  <li>Foto dan upload kwitansi tersebut di form ini.</li>
                   <li>Total Tagihan: <strong className="text-sora-navy">Rp {selectedTagihan?.nominal?.toLocaleString('id-ID')}</strong></li>
                 </ul>
               </div>
               
               <div className="space-y-2">
-                <Label>Upload Bukti Transfer</Label>
+                <Label>Upload Foto Kwitansi</Label>
                 <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileManualChange} />
               </div>
 
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="outline" onClick={() => setIsManualUpload(false)}>Kembali</Button>
                 <Button disabled={!fileBase64 || uploadingManual} onClick={submitManualPayment} className="bg-sora-green hover:bg-sora-green/80 text-white">
-                  {uploadingManual ? 'Mengunggah...' : 'Kirim Bukti'}
+                  {uploadingManual ? 'Mengunggah...' : 'Kirim Bukti Kwitansi'}
                 </Button>
               </div>
             </div>
@@ -309,46 +316,32 @@ export default function TagihanSiswa() {
       {isModalPaketOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-sora-navy/60 backdrop-blur-sm" onClick={() => setIsModalPaketOpen(false)}></div>
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl z-[110] p-6 md:p-10 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl z-[110] p-6 md:p-10 animate-in zoom-in duration-300">
             <div className="flex justify-between items-center mb-6 border-b pb-4">
               <div>
-                <h3 className="text-xl md:text-2xl font-black text-sora-navy">Paket Pelunasan SPP</h3>
-                <p className="text-[10px] font-bold text-sora-gray uppercase tracking-widest mt-1">Bayar Praktis, Bebas Denda</p>
+                <h3 className="text-xl md:text-2xl font-black text-sora-navy">Paket Pembayaran SPP</h3>
+                <p className="text-[10px] font-bold text-sora-gray uppercase tracking-widest mt-1">Bayar Fleksibel Sesuai Kebutuhan</p>
               </div>
               <button onClick={() => setIsModalPaketOpen(false)} className="text-gray-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-xl transition-all"><X size={24}/></button>
             </div>
-            <div className="space-y-4">
-              <div className="border border-gray-200 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center hover:border-sora-blue transition-all group">
-                <div className="mb-3 md:mb-0">
-                  <p className="font-black text-sora-navy group-hover:text-sora-blue transition-colors">1 Semester (6 Bulan)</p>
-                  <p className="text-xs text-gray-500 font-bold">6 x Rp 250.000</p>
+            
+            <div className="space-y-6">
+              <div className="border border-sora-blue/20 bg-blue-50/50 p-6 rounded-3xl text-center">
+                <h4 className="font-black text-sora-navy mb-4 text-sm">Berapa bulan yang ingin dibayar?</h4>
+                <div className="flex items-center justify-center gap-6 my-6">
+                  <button onClick={() => setJumlahBulan(Math.max(1, jumlahBulan - 1))} className="w-12 h-12 rounded-full bg-white border shadow-sm text-sora-navy font-black text-2xl hover:bg-gray-50 flex items-center justify-center transition-all">-</button>
+                  <input type="number" min="1" max="36" value={jumlahBulan} onChange={(e) => setJumlahBulan(Math.max(1, parseInt(e.target.value) || 1))} className="w-24 text-center font-black text-4xl text-sora-navy bg-transparent focus:outline-none appearance-none" />
+                  <button onClick={() => setJumlahBulan(jumlahBulan + 1)} className="w-12 h-12 rounded-full bg-sora-blue text-white font-black text-2xl shadow-md shadow-sora-blue/20 hover:bg-sora-navy flex items-center justify-center transition-all">+</button>
                 </div>
-                <div className="text-left md:text-right w-full md:w-auto">
-                  <p className="font-black text-sora-blue mb-2 text-lg">Rp 1.500.000</p>
-                  <button onClick={() => handlePayPaket('SEMESTER')} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
-                </div>
-              </div>
-              <div className="border border-gray-200 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center hover:border-sora-blue transition-all group">
-                <div className="mb-3 md:mb-0">
-                  <p className="font-black text-sora-navy group-hover:text-sora-blue transition-colors">1 Tahun (12 Bulan)</p>
-                  <p className="text-xs text-gray-500 font-bold">12 x Rp 250.000</p>
-                </div>
-                <div className="text-left md:text-right w-full md:w-auto">
-                  <p className="font-black text-sora-blue mb-2 text-lg">Rp 3.000.000</p>
-                  <button onClick={() => handlePayPaket('TAHUN')} className="w-full md:w-auto bg-sora-bg text-sora-blue border border-sora-blue/20 px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-blue hover:text-white transition-all">Pilih Paket</button>
+                <div className="pt-4 border-t border-blue-100/50">
+                  <p className="text-xs font-bold text-gray-500 mb-1">{jumlahBulan} Bulan x Rp 250.000</p>
+                  <p className="text-3xl font-black text-sora-blue">Rp {(jumlahBulan * 250000).toLocaleString('id-ID')}</p>
                 </div>
               </div>
-              <div className="border border-sora-green bg-sora-green/5 p-5 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center relative overflow-hidden mt-6 md:mt-4">
-                <div className="absolute top-0 right-0 bg-sora-green text-white text-[8px] font-black px-3 py-1 rounded-bl-lg uppercase tracking-widest">Paling Hemat</div>
-                <div className="mb-3 md:mb-0 mt-2 md:mt-0">
-                  <p className="font-black text-sora-green">Lunas Sampai Lulus</p>
-                  <p className="text-xs text-gray-500 font-bold">36 Bulan Pembelajaran</p>
-                </div>
-                <div className="text-left md:text-right w-full md:w-auto">
-                  <p className="font-black text-sora-green mb-2 text-lg">Rp 9.000.000</p>
-                  <button onClick={() => handlePayPaket('LULUS')} className="w-full md:w-auto bg-sora-green text-white px-5 py-3 md:py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-green-700 shadow-lg shadow-green-500/20 transition-all">Pilih Paket</button>
-                </div>
-              </div>
+              
+              <button onClick={handlePayPaket} className="w-full bg-sora-blue text-white px-5 py-4 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-lg shadow-sora-blue/20 flex items-center justify-center gap-2">
+                <CreditCard size={16} /> Lanjutkan Pembayaran
+              </button>
             </div>
           </div>
         </div>

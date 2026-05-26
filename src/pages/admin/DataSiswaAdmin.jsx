@@ -20,7 +20,7 @@ export default function DataSiswaAdmin() {
   const [selectedSiswa, setSelectedSiswa] = useState(null); 
   const [formSiswa, setFormSiswa] = useState({ 
     id: null, nisn: '', nama: '', kelas: '', jurusan: '', angkatan: '', 
-    email: '', no_hp: '', alamat: '', nama_ortu: '', email_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
+    email: '', email_beasiswa: '', no_hp: '', alamat: '', nama_ortu: '', email_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
   });
   const [isModalSiswaOpen, setIsModalSiswaOpen] = useState(false);
 
@@ -76,10 +76,11 @@ export default function DataSiswaAdmin() {
         jurusan: item.jurusan || '',
         angkatan: item.angkatan || '',
         email: item.user?.email || '',
+        email_beasiswa: item.email_beasiswa || '',
         no_hp: item.no_hp || '',
         alamat: item.alamat || item.orang_tua?.alamat || '',
         nama_ortu: item.orang_tua?.nama_lengkap || '',
-        email_ortu: item.orang_tua?.email || '',
+        email_ortu: item.email_orang_tua || item.orang_tua?.email || '',
         no_hp_ortu: item.orang_tua?.no_hp || '',
         statusSiswa: item.status === 'AKTIF' ? 'Aktif' : 'Keluar',
         tagihan: item.invoices ? item.invoices.map(inv => ({
@@ -128,10 +129,11 @@ export default function DataSiswaAdmin() {
         jurusan: item.jurusan || '',
         angkatan: item.angkatan || '',
         email: item.user?.email || '',
+        email_beasiswa: item.email_beasiswa || '',
         no_hp: item.no_hp || '',
         alamat: item.alamat || item.orang_tua?.alamat || '',
         nama_ortu: item.orang_tua?.nama_lengkap || '',
-        email_ortu: item.orang_tua?.email || '',
+        email_ortu: item.email_orang_tua || item.orang_tua?.email || '',
         no_hp_ortu: item.orang_tua?.no_hp || '',
         statusSiswa: item.status === 'AKTIF' ? 'Aktif' : 'Keluar',
         tagihan: item.invoices ? item.invoices.map(inv => ({
@@ -165,6 +167,7 @@ export default function DataSiswaAdmin() {
           jurusan: formSiswa.jurusan,
           angkatan: formSiswa.angkatan,
           email: formSiswa.email,
+          email_beasiswa: formSiswa.email_beasiswa,
           no_hp: formSiswa.no_hp,
           alamat: formSiswa.alamat,
           nama_ortu: formSiswa.nama_ortu,
@@ -175,6 +178,7 @@ export default function DataSiswaAdmin() {
       } else {
         await axios.post(`${import.meta.env.VITE_API_URL}/auth/register`, {
           email: formSiswa.email,
+          email_beasiswa: formSiswa.email_beasiswa,
           password: 'password123',
           nisn: formSiswa.nisn,
           nama_lengkap: formSiswa.nama,
@@ -225,7 +229,7 @@ export default function DataSiswaAdmin() {
     } else {
       setFormSiswa({ 
         id: null, nisn: '', nama: '', kelas: '', jurusan: '', angkatan: '', 
-        email: '', no_hp: '', alamat: '', nama_ortu: '', email_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
+        email: '', email_beasiswa: '', no_hp: '', alamat: '', nama_ortu: '', email_ortu: '', no_hp_ortu: '', statusSiswa: 'Aktif' 
       });
     }
     setIsModalSiswaOpen(true);
@@ -243,7 +247,6 @@ export default function DataSiswaAdmin() {
     }
     setIsSubmittingInvoice(true);
     
-    // Ubah format tanggal (YYYY-MM-DD) menjadi ISO-8601 (YYYY-MM-DDTHH:mm:ss.sssZ)
     const isoDate = new Date(formInvoice.tanggal_jatuh_tempo).toISOString();
 
     try {
@@ -491,6 +494,7 @@ export default function DataSiswaAdmin() {
 
             <div className="mb-6 space-y-3 text-[11px] bg-gray-50 p-5 rounded-2xl border border-gray-100 shadow-inner">
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Email</span><span className="font-bold text-sora-navy">{selectedSiswa.email || '-'}</span></div>
+              <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Email Beasiswa</span><span className="font-bold text-sora-navy">{selectedSiswa.email_beasiswa || '-'}</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">WA Siswa</span><span className="font-bold text-sora-navy">{selectedSiswa.no_hp || '-'}</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Alamat</span><span className="font-bold text-sora-navy text-right max-w-[180px] truncate">{selectedSiswa.alamat || '-'}</span></div>
               <div className="flex justify-between border-b pb-2"><span className="text-gray-500 font-medium">Wali / Ortu</span><span className="font-bold text-sora-navy">{selectedSiswa.nama_ortu || '-'} ({selectedSiswa.no_hp_ortu || '-'})</span></div>
@@ -540,6 +544,11 @@ export default function DataSiswaAdmin() {
               <div>
                 <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email Aktif Siswa</label>
                 <input type="email" value={formSiswa.email} onChange={e=>setFormSiswa({...formSiswa, email: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email Beasiswa (Opsional)</label>
+                <input type="email" value={formSiswa.email_beasiswa} onChange={e=>setFormSiswa({...formSiswa, email_beasiswa: e.target.value})} className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"/>
               </div>
 
               <div>

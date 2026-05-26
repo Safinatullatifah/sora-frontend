@@ -1,27 +1,21 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { UserCheck, FileText, CheckCircle, XCircle, Eye } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from 'sonner';
+import { CheckCircle, XCircle, Eye, Search, Loader2, FileText } from 'lucide-react';
 
 export default function VerifikasiPendaftaranAdmin() {
   const [registrations, setRegistrations] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  
   const [selectedReg, setSelectedReg] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isActionOpen, setIsActionOpen] = useState(false);
-  const [actionType, setActionType] = useState('');
-  const [password, setPassword] = useState('');
-  const [alasan, setAlasan] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
   const fetchRegistrations = async () => {
+    setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/registrations?status=PENDING`, {
@@ -29,7 +23,7 @@ export default function VerifikasiPendaftaranAdmin() {
       });
       setRegistrations(res.data.data);
     } catch {
-      toast.error("Gagal memuat data pendaftaran.");
+      toast.error('Gagal memuat data pendaftaran');
     } finally {
       setIsLoading(false);
     }
@@ -39,175 +33,272 @@ export default function VerifikasiPendaftaranAdmin() {
     fetchRegistrations();
   }, []);
 
-  const handleAction = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleAccept = async (id) => {
+    setIsActionLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const endpoint = `${import.meta.env.VITE_API_URL}/registrations/${selectedReg.id}/${actionType}`;
-      const payload = actionType === 'accept' ? { password } : { alasan };
-
-      await axios.post(endpoint, payload, {
+      await axios.put(`${import.meta.env.VITE_API_URL}/registrations/${id}/accept`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      toast.success(actionType === 'accept' ? "Pendaftar berhasil diterima" : "Pendaftar berhasil ditolak");
-      setIsActionOpen(false);
-      setPassword('');
-      setAlasan('');
+      toast.success('Pendaftaran berhasil disetujui');
       fetchRegistrations();
     } catch (error) {
-      toast.error("Gagal memproses pendaftaran", { 
-        description: error.response?.data?.message || `Terjadi kesalahan sistem` 
-      });
+      toast.error(error.response?.data?.message || 'Gagal menyetujui pendaftaran');
     } finally {
-      setIsSubmitting(false);
+      setIsActionLoading(false);
     }
   };
 
-  const openAction = (reg, type) => {
-    setSelectedReg(reg);
-    setActionType(type);
-    setIsActionOpen(true);
-  };
-
-  const openFileSafe = (base64Data) => {
+  const handleReject = async (e) => {
+    e.preventDefault();
+    if (!rejectReason) {
+      toast.error('Alasan penolakan wajib diisi');
+      return;
+    }
+    
+    setIsActionLoading(true);
     try {
-      const arr = base64Data.split(',');
-      const mimeMatch = arr[0].match(/:(.*?);/);
-      if (!mimeMatch) throw new Error("Format tidak valid");
-      
-      const mime = mimeMatch[1];
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      
-      while(n--){
-        u8arr[n] = bstr.charCodeAt(n);
-      }
-      
-      const blob = new Blob([u8arr], {type: mime});
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch {
-      toast.error("Gagal memuat berkas", { description: "Format tidak didukung atau berkas rusak." });
+      const token = localStorage.getItem('token');
+      await axios.put(`${import.meta.env.VITE_API_URL}/registrations/${selectedReg.id}/reject`, {
+        alasan: rejectReason
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Pendaftaran ditolak');
+      setIsRejectOpen(false);
+      setRejectReason('');
+      fetchRegistrations();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Gagal menolak pendaftaran');
+    } finally {
+      setIsActionLoading(false);
     }
   };
+
+  const filteredData = registrations.filter(reg => 
+    reg.nama_lengkap.toLowerCase().includes(search.toLowerCase()) || 
+    reg.nisn.includes(search)
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <div className="bg-sora-blue/10 p-3 rounded-2xl text-sora-blue">
-          <UserCheck size={28} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-black text-sora-navy">Verifikasi PPDB</h2>
-          <p className="text-sm font-bold text-gray-400">Kelola persetujuan pendaftaran calon siswa baru</p>
-        </div>
+    <div className="p-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-black text-sora-navy mb-2">Verifikasi PPDB</h1>
+        <p className="text-sora-gray text-sm">Kelola dan verifikasi pendaftaran calon siswa baru.</p>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-gray-100 p-6 shadow-xl shadow-sora-blue/5">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Calon Siswa</TableHead>
-              <TableHead>NISN / Email</TableHead>
-              <TableHead>Jurusan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center font-bold text-gray-400 py-8">Memuat data...</TableCell></TableRow>
-            ) : registrations.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center font-bold text-gray-400 py-8">Tidak ada pendaftar menunggu verifikasi</TableCell></TableRow>
-            ) : (
-              registrations.map((reg) => (
-                <TableRow key={reg.id}>
-                  <TableCell className="font-bold text-sora-navy">{reg.nama_lengkap}</TableCell>
-                  <TableCell>
-                    <div className="text-sm font-bold">{reg.nisn}</div>
-                    <div className="text-xs text-gray-400">{reg.email}</div>
-                  </TableCell>
-                  <TableCell><Badge variant="outline">{reg.jurusan}</Badge></TableCell>
-                  <TableCell><Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">PENDING</Badge></TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button size="sm" variant="outline" onClick={() => { setSelectedReg(reg); setIsDetailOpen(true); }}>
-                      <Eye className="w-4 h-4 mr-2" /> Detail
-                    </Button>
-                    <Button size="sm" className="bg-sora-green hover:bg-sora-green/80 text-white" onClick={() => openAction(reg, 'accept')}>
-                      <CheckCircle className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => openAction(reg, 'reject')}>
-                      <XCircle className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Detail Pendaftar: {selectedReg?.nama_lengkap}</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-4 text-sm font-bold text-sora-navy mb-4">
-            <div>NISN: <span className="text-gray-500">{selectedReg?.nisn}</span></div>
-            <div>Email: <span className="text-gray-500">{selectedReg?.email}</span></div>
-            <div>Jurusan: <span className="text-gray-500">{selectedReg?.jurusan}</span></div>
-            <div>No HP Ortu: <span className="text-gray-500">{selectedReg?.hp_orang_tua}</span></div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              placeholder="Cari nama atau NISN..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-sora-blue/20 outline-none text-sm"
+            />
           </div>
-          <div className="space-y-2">
-            <Label>Berkas Terlampir</Label>
-            <div className="grid grid-cols-2 gap-4">
-              {selectedReg?.berkas_url?.length > 0 ? selectedReg.berkas_url.map((file, idx) => (
-                <div key={idx} className="border p-2 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <FileText size={16} className="text-sora-blue flex-shrink-0" />
-                    <span className="text-xs truncate font-bold">Berkas_{idx + 1}</span>
-                  </div>
-                  <Button size="sm" variant="ghost" className="text-sora-blue" onClick={() => openFileSafe(file)}>Buka</Button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-gray-50/50 text-sora-gray font-semibold">
+              <tr>
+                <th className="px-6 py-4">Nama Lengkap</th>
+                <th className="px-6 py-4">NISN</th>
+                <th className="px-6 py-4">Jurusan</th>
+                <th className="px-6 py-4 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {isLoading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-10 text-center text-gray-400">
+                    <Loader2 className="animate-spin mx-auto mb-2" size={24} />
+                    Memuat data...
+                  </td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-10 text-center text-gray-400">
+                    Tidak ada pendaftaran pending saat ini.
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((reg) => (
+                  <tr key={reg.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 font-medium text-sora-navy">{reg.nama_lengkap}</td>
+                    <td className="px-6 py-4 text-sora-gray">{reg.nisn}</td>
+                    <td className="px-6 py-4 text-sora-gray">{reg.jurusan}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button 
+                          onClick={() => {
+                            setSelectedReg(reg);
+                            setIsDetailOpen(true);
+                          }}
+                          className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Lihat Detail"
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <button 
+                          onClick={() => handleAccept(reg.id)}
+                          disabled={isActionLoading}
+                          className="p-2 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-50"
+                          title="Terima Pendaftaran"
+                        >
+                          <CheckCircle size={18} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedReg(reg);
+                            setIsRejectOpen(true);
+                          }}
+                          disabled={isActionLoading}
+                          className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                          title="Tolak Pendaftaran"
+                        >
+                          <XCircle size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {isDetailOpen && selectedReg && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white">
+              <h2 className="text-xl font-black text-sora-navy">Detail Pendaftaran</h2>
+              <button onClick={() => setIsDetailOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors">
+                <XCircle size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Nama Lengkap</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.nama_lengkap}</p>
                 </div>
-              )) : (
-                <span className="text-sm text-gray-400">Tidak ada berkas diunggah.</span>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">NISN</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.nisn}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Email</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.email}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Email Beasiswa</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.email_beasiswa || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Jurusan</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.jurusan}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">No HP Siswa</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.no_hp || '-'}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="text-xs text-gray-400 mb-1">Alamat Lengkap</p>
+                  <p className="font-semibold text-sora-navy">{selectedReg.alamat || '-'}</p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-6">
+                <h3 className="font-bold text-sora-navy mb-4">Data Orang Tua</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Nama Orang Tua</p>
+                    <p className="font-semibold text-sora-navy">{selectedReg.nama_orang_tua}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">No HP Orang Tua</p>
+                    <p className="font-semibold text-sora-navy">{selectedReg.hp_orang_tua || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-400 mb-1">Email Orang Tua</p>
+                    <p className="font-semibold text-sora-navy">{selectedReg.email_orang_tua || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedReg.berkas_url && selectedReg.berkas_url.length > 0 && (
+                <div className="border-t border-gray-100 pt-6">
+                  <h3 className="font-bold text-sora-navy mb-4">Berkas Pendukung</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedReg.berkas_url.map((url, idx) => (
+                      <a 
+                        key={idx} 
+                        href={url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-sora-blue transition-colors group"
+                      >
+                        <div className="p-2 bg-white rounded-lg border border-gray-100">
+                          <FileText size={20} className="text-sora-blue" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-600 group-hover:text-sora-blue">Lihat Berkas {idx + 1}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
-      <Dialog open={isActionOpen} onOpenChange={setIsActionOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className={actionType === 'accept' ? 'text-sora-green' : 'text-red-500'}>
-              {actionType === 'accept' ? 'Terima Pendaftar' : 'Tolak Pendaftar'}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAction} className="space-y-4 mt-4">
-            {actionType === 'accept' ? (
-              <div className="space-y-2">
-                <Label>Buatkan Password Akun Siswa</Label>
-                <Input required type="text" placeholder="Minimal 6 karakter" value={password} onChange={e => setPassword(e.target.value)} minLength={6} />
+      {isRejectOpen && selectedReg && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-gray-100">
+              <h2 className="text-xl font-black text-sora-navy">Tolak Pendaftaran</h2>
+            </div>
+            <form onSubmit={handleReject} className="p-6">
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-sora-navy mb-2">Alasan Penolakan</label>
+                <textarea 
+                  required
+                  rows="4"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Masukkan alasan pendaftaran ditolak (wajib)..."
+                  className="w-full p-4 bg-gray-50 border border-transparent rounded-xl outline-none focus:bg-white focus:border-red-400 focus:ring-4 focus:ring-red-400/10 transition-all resize-none text-sm font-medium"
+                />
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Alasan Penolakan</Label>
-                <Textarea required placeholder="Misal: Berkas tidak lengkap..." value={alasan} onChange={e => setAlasan(e.target.value)} />
+              <div className="flex gap-3 justify-end">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsRejectOpen(false);
+                    setRejectReason('');
+                  }}
+                  className="px-5 py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isActionLoading}
+                  className="px-5 py-2.5 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isActionLoading && <Loader2 size={16} className="animate-spin" />}
+                  Konfirmasi Tolak
+                </button>
               </div>
-            )}
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsActionOpen(false)}>Batal</Button>
-              <Button type="submit" disabled={isSubmitting} className={actionType === 'accept' ? 'bg-sora-green hover:bg-sora-green/80 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}>
-                {isSubmitting ? 'Memproses...' : 'Konfirmasi'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

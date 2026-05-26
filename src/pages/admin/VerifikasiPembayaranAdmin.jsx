@@ -24,7 +24,7 @@ export default function VerifikasiPembayaranAdmin() {
       });
       setTransactions(res.data.data);
     } catch {
-      toast.error("Gagal memuat data transaksi manual.");
+      toast.error("Gagal memuat data transaksi kwitansi manual.");
     } finally {
       setIsLoading(false);
     }
@@ -44,11 +44,11 @@ export default function VerifikasiPembayaranAdmin() {
         { action: actionType },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      toast.success(actionType === 'accept' ? "Pembayaran berhasil diverifikasi" : "Pembayaran ditolak");
+      toast.success(actionType === 'accept' ? "Kwitansi berhasil diverifikasi, tagihan lunas" : "Kwitansi ditolak");
       setIsActionOpen(false);
       fetchTransactions();
     } catch (error) {
-      toast.error("Gagal memproses transaksi", { 
+      toast.error("Gagal memproses verifikasi kwitansi", { 
         description: error.response?.data?.message || "Terjadi kesalahan sistem" 
       });
     } finally {
@@ -65,7 +65,7 @@ export default function VerifikasiPembayaranAdmin() {
   const openFileSafe = (base64Data) => {
     try {
       if (!base64Data) {
-        toast.error("Bukti transfer tidak tersedia.");
+        toast.error("Foto kwitansi tidak tersedia.");
         return;
       }
       const arr = base64Data.split(',');
@@ -85,7 +85,7 @@ export default function VerifikasiPembayaranAdmin() {
       const url = URL.createObjectURL(blob);
       window.open(url, '_blank');
     } catch {
-      toast.error("Gagal memuat bukti transfer", { description: "Format tidak didukung atau berkas korup." });
+      toast.error("Gagal memuat foto kwitansi", { description: "Format tidak didukung atau berkas korup." });
     }
   };
 
@@ -96,8 +96,8 @@ export default function VerifikasiPembayaranAdmin() {
           <CreditCard size={28} />
         </div>
         <div>
-          <h2 className="text-2xl font-black text-sora-navy">Konfirmasi Transfer Manual</h2>
-          <p className="text-sm font-bold text-gray-400">Verifikasi bukti pembayaran yang diunggah siswa</p>
+          <h2 className="text-2xl font-black text-sora-navy">Verifikasi Kwitansi Pembayaran</h2>
+          <p className="text-sm font-bold text-gray-400">Verifikasi foto kwitansi cash yang diunggah siswa</p>
         </div>
       </div>
 
@@ -107,7 +107,7 @@ export default function VerifikasiPembayaranAdmin() {
             <TableRow>
               <TableHead>Siswa</TableHead>
               <TableHead>Detail Tagihan</TableHead>
-              <TableHead>Nominal Transfer</TableHead>
+              <TableHead>Nominal Pembayaran</TableHead>
               <TableHead>Tanggal Kirim</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
@@ -116,7 +116,7 @@ export default function VerifikasiPembayaranAdmin() {
             {isLoading ? (
               <TableRow><TableCell colSpan={5} className="text-center font-bold text-gray-400 py-8">Memuat data...</TableCell></TableRow>
             ) : transactions.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center font-bold text-gray-400 py-8">Tidak ada transaksi manual menunggu konfirmasi</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center font-bold text-gray-400 py-8">Tidak ada kwitansi menunggu konfirmasi</TableCell></TableRow>
             ) : (
               transactions.map((tx) => (
                 <TableRow key={tx.id}>
@@ -136,7 +136,7 @@ export default function VerifikasiPembayaranAdmin() {
                   </TableCell>
                   <TableCell className="text-right space-x-2">
                     <Button size="sm" variant="outline" onClick={() => { setSelectedTx(tx); setIsDetailOpen(true); }}>
-                      <Eye className="w-4 h-4 mr-2" /> Struk
+                      <Eye className="w-4 h-4 mr-2" /> Kwitansi
                     </Button>
                     <Button size="sm" className="bg-sora-green hover:bg-sora-green/80 text-white" onClick={() => openAction(tx, 'accept')}>
                       <CheckCircle className="w-4 h-4" />
@@ -155,7 +155,7 @@ export default function VerifikasiPembayaranAdmin() {
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Detail Transaksi</DialogTitle>
+            <DialogTitle>Detail Kwitansi Cash</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2 text-sm font-bold text-sora-navy bg-gray-50 p-4 rounded-xl border">
@@ -172,7 +172,7 @@ export default function VerifikasiPembayaranAdmin() {
                 <div className="flex items-center gap-3">
                   <FileText className="text-sora-blue group-hover:scale-110 transition-transform" />
                   <div>
-                    <p className="text-sm font-bold text-sora-navy">Bukti Transfer</p>
+                    <p className="text-sm font-bold text-sora-navy">Foto Kwitansi</p>
                     <p className="text-[10px] text-gray-500 uppercase tracking-widest font-black">Klik untuk melihat</p>
                   </div>
                 </div>
@@ -187,13 +187,13 @@ export default function VerifikasiPembayaranAdmin() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className={actionType === 'accept' ? 'text-sora-green' : 'text-red-500'}>
-              {actionType === 'accept' ? 'Konfirmasi Pembayaran Lunas?' : 'Tolak Bukti Transfer?'}
+              {actionType === 'accept' ? 'Konfirmasi Kwitansi Lunas?' : 'Tolak Bukti Kwitansi?'}
             </DialogTitle>
           </DialogHeader>
           <div className="mt-4 text-sm font-bold text-sora-gray">
             {actionType === 'accept' 
               ? 'Tindakan ini akan mengubah status tagihan menjadi LUNAS dan tidak dapat dibatalkan dengan mudah.' 
-              : 'Tindakan ini akan mengembalikan status tagihan menjadi BELUM BAYAR. Siswa harus mengunggah ulang struk yang benar.'}
+              : 'Tindakan ini akan mengembalikan status tagihan menjadi BELUM BAYAR. Siswa harus mengunggah ulang foto kwitansi yang benar.'}
           </div>
           <form onSubmit={handleAction} className="mt-6">
             <DialogFooter>
