@@ -75,6 +75,15 @@ export default function ProfilSiswa() {
       toast.error("Validasi Gagal", { description: "Password baru dan konfirmasi tidak cocok!" });
       return;
     }
+    if (passForm.newPassword.length < 8) {
+      toast.error("Validasi Gagal", { description: "Password baru minimal 8 karakter!" });
+      return;
+    }
+    
+    if (passForm.newPassword !== passForm.confirmPassword) {
+      toast.error("Validasi Gagal", { description: "Password baru dan konfirmasi tidak cocok!" });
+      return;
+    }
 
     setIsPassLoading(true);
 
