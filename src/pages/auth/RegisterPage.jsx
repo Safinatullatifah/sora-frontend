@@ -243,7 +243,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2 md:col-span-2 mt-4">
-                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Upload Berkas Pendukung (Ijazah, KK, Akta)</label>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Unggah Berkas Pendukung (Ijazah, KK, Akta)</label>
                 <div className="relative">
                   <input id="berkas" type="file" multiple onChange={handleFileChange} className="hidden" accept=".pdf,.jpg,.jpeg,.png" />
                   <label htmlFor="berkas" className="w-full flex flex-col items-center justify-center p-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 hover:bg-white hover:border-sora-blue transition-all cursor-pointer group">

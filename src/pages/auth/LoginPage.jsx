@@ -14,6 +14,7 @@ export default function LoginPage({ onLogin }) {
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetLoading, setIsResetLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,13 +64,25 @@ export default function LoginPage({ onLogin }) {
     }
   };
 
-  const handleResetPassword = (e) => {
+  const handleResetPassword = async (e) => {
     e.preventDefault();
-    if (resetEmail) {
+    
+    if (!resetEmail) {
+      toast.error("Email wajib diisi!");
+      return;
+    }
+
+    setIsResetLoading(true);
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/auth/forgot-password`, { email: resetEmail });
       toast.success("Link pemulihan telah dikirim ke email Anda!");
       setEmailSent(true);
-    } else {
-      toast.error("Email wajib diisi!");
+    } catch (error) {
+      const msg = error.response?.data?.message || "Gagal mengirim link pemulihan.";
+      toast.error(msg);
+    } finally {
+      setIsResetLoading(false);
     }
   };
 
@@ -111,7 +124,7 @@ export default function LoginPage({ onLogin }) {
 
               <form onSubmit={handleSubmit} className="space-y-5 text-left">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email / Username</label>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Email</label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input 
@@ -126,7 +139,7 @@ export default function LoginPage({ onLogin }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Password</label>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Sandi</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                     <input 
@@ -153,7 +166,7 @@ export default function LoginPage({ onLogin }) {
                     onClick={() => setIsForgot(true)}
                     className="text-[10px] font-black text-sora-blue hover:text-sora-navy transition-colors uppercase tracking-widest"
                   >
-                    Lupa Password?
+                    Lupa Sandi?
                   </button>
                 </div>
 
@@ -162,7 +175,7 @@ export default function LoginPage({ onLogin }) {
                   disabled={isLoading}
                   className="w-full bg-sora-navy text-white font-black py-4 sm:py-5 rounded-[1.5rem] shadow-xl shadow-sora-navy/20 hover:bg-sora-blue transition-all active:scale-95 flex items-center justify-center gap-2 uppercase tracking-[0.2em] text-[10px] mt-4 disabled:opacity-50"
                 >
-                  {isLoading ? <Loader2 className="animate-spin" size={18}/> : <><LogIn size={18}/> Sign In ke Portal</>}
+                  {isLoading ? <Loader2 className="animate-spin" size={18}/> : <><LogIn size={18}/> Masuk ke Portal</>}
                 </button>
               </form>
 
@@ -215,7 +228,13 @@ export default function LoginPage({ onLogin }) {
                     placeholder="Masukkan email Anda..." 
                     required
                   />
-                  <button type="submit" className="w-full bg-sora-blue text-white font-black py-4 sm:py-5 rounded-[1.5rem] uppercase tracking-[0.2em] text-[10px]">Kirim Link</button>
+                  <button 
+                    type="submit" 
+                    disabled={isResetLoading}
+                    className="w-full bg-sora-blue text-white font-black py-4 sm:py-5 rounded-[1.5rem] uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isResetLoading ? <Loader2 className="animate-spin" size={18}/> : "Kirim Link"}
+                  </button>
                 </form>
               )}
             </div>

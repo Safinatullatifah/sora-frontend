@@ -5,8 +5,10 @@ import { Toaster } from '@/components/ui/sonner';
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const CekStatusPage = lazy(() => import('./pages/auth/CekStatusPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const PrintLaporan = lazy(() => import('./pages/PrintLaporan'));
 const PrintStrukTagihan = lazy(() => import('./pages/PrintStrukTagihan'));
+const PrintRekapSiswa = lazy(() => import('./pages/PrintRekapSiswa'));
 
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const DashboardAdmin = lazy(() => import('./pages/admin/DashboardAdmin'));
@@ -58,8 +60,10 @@ export default function App() {
           />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/cek-status" element={<CekStatusPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/print-laporan" element={<PrintLaporan />} />
           <Route path="/print-struk-tagihan" element={<PrintStrukTagihan />} />
+          <Route path="/print-rekap-siswa" element={<PrintRekapSiswa />} />
 
           <Route path="/admin" element={user?.role === 'admin' ? <AdminLayout onLogout={handleLogout} /> : <Navigate to="/login" replace />}>
             <Route index element={<DashboardAdmin />} />
@@ -86,7 +90,18 @@ export default function App() {
           <Route path="/ortu/*" element={user?.role === 'ortu' ? <Navigate to="/siswa" replace /> : <Navigate to="/login" replace />} />
           <Route path="/" element={<Navigate to={user?.role === 'admin' ? "/admin" : (user?.role === 'siswa' || user?.role === 'ortu') ? "/siswa" : "/login"} replace />} />
         </Routes>
-        <Toaster position="top-center" />
+        <Toaster 
+          position="top-center" 
+          toastOptions={{
+            classNames: {
+              toast: 'font-sans font-semibold shadow-xl border',
+              success: '!bg-green-50 !text-green-600 !border-green-200',
+              error: '!bg-red-50 !text-red-500 !border-red-200',
+              warning: '!bg-orange-50 !text-orange-500 !border-orange-200',
+              info: '!bg-blue-50 !text-[#1e3a8a] !border-blue-200',
+            }
+          }}
+        />
       </Suspense>
     </BrowserRouter>
   );

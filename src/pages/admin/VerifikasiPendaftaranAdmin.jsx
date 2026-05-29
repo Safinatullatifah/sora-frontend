@@ -33,6 +33,30 @@ export default function VerifikasiPendaftaranAdmin() {
     fetchRegistrations();
   }, []);
 
+  const openBerkas = (url) => {
+    if (!url) return;
+
+    if (url.startsWith('data:')) {
+      try {
+        const arr = url.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+      } catch (error) {
+        toast.error("Gagal membuka file. Format tidak didukung.");
+      }
+    } else {
+      window.open(url, '_blank');
+    }
+  };
+
   const handleAccept = async (id) => {
     setIsActionLoading(true);
     try {
@@ -236,18 +260,17 @@ export default function VerifikasiPendaftaranAdmin() {
                   <h3 className="font-bold text-sora-navy mb-4">Berkas Pendukung</h3>
                   <div className="grid grid-cols-2 gap-4">
                     {selectedReg.berkas_url.map((url, idx) => (
-                      <a 
+                      <button 
                         key={idx} 
-                        href={url} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-sora-blue transition-colors group"
+                        type="button"
+                        onClick={() => openBerkas(url)}
+                        className="w-full text-left flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-sora-blue transition-colors group"
                       >
                         <div className="p-2 bg-white rounded-lg border border-gray-100">
                           <FileText size={20} className="text-sora-blue" />
                         </div>
                         <span className="text-sm font-semibold text-gray-600 group-hover:text-sora-blue">Lihat Berkas {idx + 1}</span>
-                      </a>
+                      </button>
                     ))}
                   </div>
                 </div>

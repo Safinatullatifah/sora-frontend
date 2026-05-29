@@ -78,7 +78,7 @@ function AdminLayoutContent({ onLogout }) {
         </nav>
         <div className="p-6">
           <button onClick={onLogout} className="w-full flex items-center justify-center gap-3 py-4 bg-red-500/10 text-red-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all text-xs font-black uppercase tracking-widest">
-            <LogOut size={18}/> Logout
+            <LogOut size={18}/> Keluar
           </button>
         </div>
       </aside>

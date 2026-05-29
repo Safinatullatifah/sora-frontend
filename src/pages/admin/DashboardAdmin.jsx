@@ -71,7 +71,7 @@ export default function DashboardAdmin() {
           icon={<CreditCard size={20}/>} 
           label="Tunggakan" 
           value={formatCompactCurrency(stats.invoices.total_unpaid)} 
-          sub="Pending Payment" 
+          sub="Belum Dibayar" 
           color="bg-red-500" 
         />
         <StatCard 
