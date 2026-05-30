@@ -39,6 +39,15 @@ export default function DataSiswaAdmin() {
     tanggal_jatuh_tempo: ''
   });
 
+  const [isEditInvoiceModalOpen, setIsEditInvoiceModalOpen] = useState(false);
+  const [isUpdatingInvoice, setIsUpdatingInvoice] = useState(false);
+  const [editInvoiceForm, setEditInvoiceForm] = useState({
+    id: '',
+    judul_tagihan: '',
+    nominal: '',
+    tanggal_jatuh_tempo: ''
+  });
+
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState(null);
   const [isImporting, setIsImporting] = useState(false);
@@ -90,7 +99,8 @@ export default function DataSiswaAdmin() {
           nama: inv.judul_tagihan,
           kategori: inv.jenis_tagihan,
           nominal: inv.nominal,
-          status: inv.status === 'PAID' ? 'Lunas' : 'Belum Bayar'
+          status: inv.status === 'PAID' ? 'Lunas' : 'Belum Bayar',
+          tanggal_jatuh_tempo: inv.tanggal_jatuh_tempo ? inv.tanggal_jatuh_tempo.split('T')[0] : ''
         })) : []
       }));
       
@@ -143,7 +153,8 @@ export default function DataSiswaAdmin() {
           nama: inv.judul_tagihan,
           kategori: inv.jenis_tagihan,
           nominal: inv.nominal,
-          status: inv.status === 'PAID' ? 'Lunas' : 'Belum Bayar'
+          status: inv.status === 'PAID' ? 'Lunas' : 'Belum Bayar',
+          tanggal_jatuh_tempo: inv.tanggal_jatuh_tempo ? inv.tanggal_jatuh_tempo.split('T')[0] : ''
         })) : []
       });
       if (window.innerWidth < 1024) {
@@ -299,6 +310,66 @@ export default function DataSiswaAdmin() {
     }
   };
 
+  const openEditInvoice = (invoice) => {
+    setEditInvoiceForm({
+      id: invoice.id,
+      judul_tagihan: invoice.nama,
+      nominal: invoice.nominal,
+      tanggal_jatuh_tempo: invoice.tanggal_jatuh_tempo
+    });
+    setIsEditInvoiceModalOpen(true);
+  };
+
+  const handleUpdateInvoice = async (e) => {
+    e.preventDefault();
+    setIsUpdatingInvoice(true);
+    
+    try {
+      const payload = {
+        student_id: selectedSiswa.id,
+        judul_tagihan: editInvoiceForm.judul_tagihan,
+        nominal: parseInt(editInvoiceForm.nominal, 10)
+      };
+
+      if (editInvoiceForm.tanggal_jatuh_tempo) {
+        payload.tanggal_jatuh_tempo = new Date(editInvoiceForm.tanggal_jatuh_tempo).toISOString();
+      }
+
+      await axios.put(`${import.meta.env.VITE_API_URL}/invoices/${editInvoiceForm.id}`, payload, getAuthHeaders());
+      
+      toast.success("Tagihan berhasil diperbarui");
+      setIsEditInvoiceModalOpen(false);
+      fetchStudents();
+      if (selectedSiswa) handleSelectSiswa({ id: selectedSiswa.id });
+    } catch (error) {
+      toast.error("Gagal memperbarui tagihan", { description: error.response?.data?.message || "Terjadi kesalahan pada server" });
+    } finally {
+      setIsUpdatingInvoice(false);
+    }
+  };
+
+  const executeDeleteInvoice = async (invoiceId) => {
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/invoices/${invoiceId}`, getAuthHeaders());
+      toast.success("Tagihan berhasil dihapus");
+      fetchStudents();
+      if (selectedSiswa) handleSelectSiswa({ id: selectedSiswa.id });
+    } catch (error) {
+      toast.error("Gagal menghapus tagihan", { description: error.response?.data?.message || "Terjadi kesalahan" });
+    } finally {
+      setConfirmDialog({ ...confirmDialog, isOpen: false });
+    }
+  };
+
+  const handleDeleteInvoice = (invoiceId) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: "Hapus Tagihan",
+      desc: "Apakah Anda yakin ingin menghapus tagihan ini? Data tagihan yang dihapus tidak bisa dikembalikan.",
+      action: () => executeDeleteInvoice(invoiceId)
+    });
+  };
+
   const handleDownloadTemplate = () => {
     const wsData = [{
       "NISN": "1234567890",
@@ -383,7 +454,6 @@ export default function DataSiswaAdmin() {
     reader.readAsArrayBuffer(importFile);
   };
 
-  // ✅ FUNGSI CETAK DIPERBARUI: Menggunakan halaman Print khusus
   const handleCetakStruk = (siswa, tagihan) => {
     const dataPrintStruk = {
       namaSiswa: siswa.nama, nisn: siswa.nisn, kelas: siswa.kelas,
@@ -394,7 +464,6 @@ export default function DataSiswaAdmin() {
     window.open('/print-struk-tagihan', '_blank');
   };
 
-  // ✅ FUNGSI CETAK DIPERBARUI: Menggunakan halaman Print khusus
   const handleCetakTanggungan = (siswa) => {
     localStorage.setItem('printRekapSiswaData', JSON.stringify(siswa));
     window.open('/print-rekap-siswa', '_blank');
@@ -549,10 +618,28 @@ export default function DataSiswaAdmin() {
                       </div>
                       <span className={`px-2 py-1.5 rounded-md text-[8px] md:text-[9px] font-black uppercase text-center min-w-[70px] ${t.status === 'Lunas' ? 'bg-sora-green/20 text-sora-green' : 'bg-red-100 text-red-500'}`}>{t.status}</span>
                     </div>
-                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-dashed border-gray-300">
-                      <span className="font-black text-sora-blue text-sm md:text-base">Rp {t.nominal.toLocaleString('id-ID')}</span>
-                      {t.status === 'Lunas' && (<button onClick={() => handleCetakStruk(selectedSiswa, t)} className="text-[9px] flex items-center gap-1.5 font-black text-sora-green bg-white border border-sora-green px-3 py-1.5 rounded-lg hover:bg-sora-green hover:text-white transition-all shadow-sm"><Printer size={12}/> Struk</button>)}
+                    
+                    <div className="mt-3 pt-3 border-t border-dashed border-gray-300">
+                      <p className="font-black text-sora-blue text-sm md:text-base mb-3">Rp {t.nominal.toLocaleString('id-ID')}</p>
+                      <div className="flex gap-2 w-full">
+                        {t.status !== 'Lunas' && (
+                          <>
+                            <button onClick={() => openEditInvoice(t)} className="flex-1 justify-center text-[10px] flex items-center gap-1.5 font-black text-sora-blue bg-white border border-sora-blue px-3 py-2 rounded-lg hover:bg-sora-blue hover:text-white transition-all shadow-sm">
+                              <Edit3 size={14}/> Edit
+                            </button>
+                            <button onClick={() => handleDeleteInvoice(t.id)} className="flex-1 justify-center text-[10px] flex items-center gap-1.5 font-black text-red-500 bg-white border border-red-500 px-3 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                              <Trash2 size={14}/> Hapus
+                            </button>
+                          </>
+                        )}
+                        {t.status === 'Lunas' && (
+                          <button onClick={() => handleCetakStruk(selectedSiswa, t)} className="w-full justify-center text-[10px] flex items-center gap-1.5 font-black text-sora-green bg-white border border-sora-green px-3 py-2 rounded-lg hover:bg-sora-green hover:text-white transition-all shadow-sm">
+                            <Printer size={14}/> Cetak Struk
+                          </button>
+                        )}
+                      </div>
                     </div>
+
                   </div>
                 )) : (
                   <p className="text-center text-xs font-bold text-gray-400 mt-10">Belum ada data tagihan</p>
@@ -759,6 +846,51 @@ export default function DataSiswaAdmin() {
                     {isSubmittingInvoice ? 'MEMPROSES...' : 'TERBITKAN TAGIHAN'}
                   </button>
                   <button type="button" onClick={()=>setIsInvoiceModalOpen(false)} className="w-full bg-gray-100 text-sora-navy py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">BATAL</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {isEditInvoiceModalOpen && (
+          <div className="fixed inset-0 bg-sora-navy/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] w-full max-w-md animate-in zoom-in duration-300">
+              <h3 className="text-xl md:text-2xl font-black mb-6">Edit Tagihan</h3>
+              <form onSubmit={handleUpdateInvoice} className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Judul Tagihan</label>
+                  <input 
+                    type="text" 
+                    required 
+                    value={editInvoiceForm.judul_tagihan} 
+                    onChange={e => setEditInvoiceForm({...editInvoiceForm, judul_tagihan: e.target.value})} 
+                    className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Nominal (Rp)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    value={editInvoiceForm.nominal} 
+                    onChange={e => setEditInvoiceForm({...editInvoiceForm, nominal: e.target.value})} 
+                    className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Batas Pembayaran</label>
+                  <input 
+                    type="date" 
+                    value={editInvoiceForm.tanggal_jatuh_tempo} 
+                    onChange={e => setEditInvoiceForm({...editInvoiceForm, tanggal_jatuh_tempo: e.target.value})} 
+                    className="w-full p-4 mt-2 bg-gray-50 rounded-xl outline-none focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 border border-transparent transition-all text-sm font-medium"
+                  />
+                </div>
+                <div className="mt-8 pt-4 space-y-3">
+                  <button type="submit" disabled={isUpdatingInvoice} className="w-full bg-sora-navy text-white py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-sora-blue transition-all shadow-lg active:scale-95 disabled:opacity-50">
+                    {isUpdatingInvoice ? 'MEMPROSES...' : 'SIMPAN PERUBAHAN'}
+                  </button>
+                  <button type="button" onClick={() => setIsEditInvoiceModalOpen(false)} className="w-full bg-gray-100 text-sora-navy py-4 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-gray-200 transition-all active:scale-95">BATAL</button>
                 </div>
               </form>
             </div>
