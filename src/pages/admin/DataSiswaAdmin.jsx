@@ -436,7 +436,7 @@ export default function DataSiswaAdmin() {
               email_orang_tua: row["Email Orang Tua"] || ''
             });
             successCount++;
-          } catch (err) {
+          } catch {
             failCount++;
           }
         }
@@ -445,7 +445,7 @@ export default function DataSiswaAdmin() {
         setIsImportModalOpen(false);
         setImportFile(null);
         fetchStudents();
-      } catch (error) {
+      } catch {
         toast.error("Gagal membaca file Excel. Pastikan format sesuai template.");
       } finally {
         setIsImporting(false);

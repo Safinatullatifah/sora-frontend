@@ -49,7 +49,7 @@ export default function VerifikasiPendaftaranAdmin() {
         const blob = new Blob([u8arr], { type: mime });
         const blobUrl = URL.createObjectURL(blob);
         window.open(blobUrl, '_blank');
-      } catch (error) {
+      } catch {
         toast.error("Gagal membuka file. Format tidak didukung.");
       }
     } else {
