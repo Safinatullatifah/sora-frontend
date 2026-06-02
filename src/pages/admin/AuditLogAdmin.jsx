@@ -27,9 +27,9 @@ export default function AuditLogAdmin() {
   }, [fetchLogs]);
 
   const filteredLogs = logs.filter(log => 
-    log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.admin?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    log.details?.toLowerCase().includes(searchTerm.toLowerCase())
+    log.aksi?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.admin_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    log.deskripsi?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -43,7 +43,7 @@ export default function AuditLogAdmin() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text"
-            placeholder="Cari aksi atau email admin..."
+            placeholder="Cari aksi atau ID admin..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue outline-none text-sm transition-all"
@@ -75,7 +75,7 @@ export default function AuditLogAdmin() {
                     <td className="p-6">
                       <div className="flex items-center gap-2 text-xs font-bold text-sora-gray">
                         <Clock size={14} className="text-sora-blue" />
-                        {new Date(log.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                        {new Date(log.created_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                       </div>
                     </td>
                     <td className="p-6">
@@ -83,17 +83,17 @@ export default function AuditLogAdmin() {
                         <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-sora-blue">
                           <User size={14} />
                         </div>
-                        <span className="text-sm font-black text-sora-navy">{log.admin?.email || 'System'}</span>
+                        <span className="text-sm font-black text-sora-navy">{log.admin_id || 'System'}</span>
                       </div>
                     </td>
                     <td className="p-6">
                       <span className="px-3 py-1.5 bg-sora-navy/5 text-sora-navy rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center w-fit gap-1.5">
                         <Activity size={12} />
-                        {log.action}
+                        {log.aksi}
                       </span>
                     </td>
                     <td className="p-6 text-xs text-sora-gray font-bold max-w-sm truncate">
-                      {log.details || '-'}
+                      {log.deskripsi || '-'}
                     </td>
                   </tr>
                 ))

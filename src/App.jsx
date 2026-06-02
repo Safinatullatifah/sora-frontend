@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, Suspense, lazy } from 'react';
+import { useState, Suspense, lazy, useEffect } from 'react';
+import axios from 'axios';
 import { Toaster } from '@/components/ui/sonner';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
@@ -49,6 +50,22 @@ export default function App() {
     setUser(null);
     localStorage.clear();
   };
+
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response && error.response.status === 401) {
+          handleLogout();
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
 
   return (
     <BrowserRouter>

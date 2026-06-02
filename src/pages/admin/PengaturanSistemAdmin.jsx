@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Settings2, Save, Globe, Phone, Mail, MapPin, Building2, Loader2 } from 'lucide-react';
+import { Settings2, Save, Globe, Phone, Mail, MapPin, Building2, Loader2, CreditCard, CalendarClock, AlertCircle, Percent, Bell, FileUp } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function PengaturanSistemAdmin() {
@@ -9,7 +9,14 @@ export default function PengaturanSistemAdmin() {
     email_kontak: '',
     telepon_kontak: '',
     alamat: '',
-    is_maintenance: false
+    is_maintenance: false,
+    batas_hari_jatuh_tempo: 30,
+    batas_hari_tunggakan: 90,
+    persentase_denda_per_hari: 0.5,
+    email_reminder_hari_ke: 7,
+    aktifkan_notifikasi_email: true,
+    aktifkan_payment_gateway: true,
+    max_upload_file_size_mb: 10
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -21,7 +28,20 @@ export default function PengaturanSistemAdmin() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.data) {
-        setConfig(response.data.data);
+        setConfig({
+          nama_sekolah: response.data.data.nama_sekolah ?? '',
+          email_kontak: response.data.data.email_kontak ?? '',
+          telepon_kontak: response.data.data.telepon_kontak ?? '',
+          alamat: response.data.data.alamat ?? '',
+          is_maintenance: response.data.data.is_maintenance ?? false,
+          batas_hari_jatuh_tempo: response.data.data.batas_hari_jatuh_tempo ?? 30,
+          batas_hari_tunggakan: response.data.data.batas_hari_tunggakan ?? 90,
+          persentase_denda_per_hari: response.data.data.persentase_denda_per_hari ?? 0.5,
+          email_reminder_hari_ke: response.data.data.email_reminder_hari_ke ?? 7,
+          aktifkan_notifikasi_email: response.data.data.aktifkan_notifikasi_email ?? true,
+          aktifkan_payment_gateway: response.data.data.aktifkan_payment_gateway ?? true,
+          max_upload_file_size_mb: response.data.data.max_upload_file_size_mb ?? 10
+        });
       }
     } catch {
       toast.error("Gagal memuat pengaturan sistem");
@@ -35,8 +55,16 @@ export default function PengaturanSistemAdmin() {
   }, [fetchConfig]);
 
   const handleChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setConfig({ ...config, [e.target.name]: value });
+    const { name, type, checked, value } = e.target;
+    let parsedValue = value;
+    
+    if (type === 'checkbox') {
+      parsedValue = checked;
+    } else if (type === 'number') {
+      parsedValue = value === '' ? '' : Number(value);
+    }
+
+    setConfig(prev => ({ ...prev, [name]: parsedValue }));
   };
 
   const handleSave = async (e) => {
@@ -71,7 +99,7 @@ export default function PengaturanSistemAdmin() {
         </div>
         <div>
           <h1 className="text-2xl font-black text-sora-navy tracking-tight">Pengaturan Sistem</h1>
-          <p className="text-sora-gray text-sm font-medium">Konfigurasi informasi instansi dan status aplikasi.</p>
+          <p className="text-sora-gray text-sm font-medium">Konfigurasi operasional, tagihan, dan identitas aplikasi.</p>
         </div>
       </div>
 
@@ -89,7 +117,7 @@ export default function PengaturanSistemAdmin() {
                 <input 
                   type="text" 
                   name="nama_sekolah"
-                  value={config.nama_sekolah || ''}
+                  value={config.nama_sekolah ?? ''}
                   onChange={handleChange}
                   required
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
@@ -110,7 +138,7 @@ export default function PengaturanSistemAdmin() {
                 <input 
                   type="email" 
                   name="email_kontak"
-                  value={config.email_kontak || ''}
+                  value={config.email_kontak ?? ''}
                   onChange={handleChange}
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
                   placeholder="admin@sora.com" 
@@ -124,7 +152,7 @@ export default function PengaturanSistemAdmin() {
                 <input 
                   type="text" 
                   name="telepon_kontak"
-                  value={config.telepon_kontak || ''}
+                  value={config.telepon_kontak ?? ''}
                   onChange={handleChange}
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
                   placeholder="(031) 123456" 
@@ -141,12 +169,129 @@ export default function PengaturanSistemAdmin() {
               <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Alamat Lengkap</label>
               <textarea 
                 name="alamat"
-                value={config.alamat || ''}
+                value={config.alamat ?? ''}
                 onChange={handleChange}
                 rows="4"
                 className="w-full p-4 mt-2 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy resize-none" 
                 placeholder="Jl. Teknologi Masa Depan No. 99..." 
               ></textarea>
+            </div>
+          </div>
+
+          <div className="space-y-6 md:col-span-2 pt-6 border-t border-gray-100">
+            <h3 className="text-[10px] font-black text-sora-blue uppercase tracking-widest flex items-center gap-2">
+              <CreditCard size={14} /> Pengaturan Keuangan & Sistem
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Jatuh Tempo (Hari)</label>
+                <div className="relative mt-2">
+                  <CalendarClock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="number" 
+                    name="batas_hari_jatuh_tempo"
+                    value={config.batas_hari_jatuh_tempo ?? ''}
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Tunggakan (Hari)</label>
+                <div className="relative mt-2">
+                  <AlertCircle className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="number" 
+                    name="batas_hari_tunggakan"
+                    value={config.batas_hari_tunggakan ?? ''}
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Denda per Hari (%)</label>
+                <div className="relative mt-2">
+                  <Percent className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="number" 
+                    step="0.1"
+                    name="persentase_denda_per_hari"
+                    value={config.persentase_denda_per_hari ?? ''}
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Reminder Email (H-)</label>
+                <div className="relative mt-2">
+                  <Bell className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="number" 
+                    name="email_reminder_hari_ke"
+                    value={config.email_reminder_hari_ke ?? ''}
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-sora-navy uppercase tracking-[0.2em] ml-1">Batas Upload (MB)</label>
+                <div className="relative mt-2">
+                  <FileUp className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input 
+                    type="number" 
+                    name="max_upload_file_size_mb"
+                    value={config.max_upload_file_size_mb ?? ''}
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-transparent focus:bg-white focus:border-sora-blue focus:ring-4 focus:ring-sora-blue/10 outline-none transition-all text-sm font-medium text-sora-navy" 
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6 md:col-span-2 pt-6 border-t border-gray-100">
+            <h3 className="text-[10px] font-black text-sora-blue uppercase tracking-widest flex items-center gap-2">
+              <Settings2 size={14} /> Fitur Aktif
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <label className="flex items-center gap-4 cursor-pointer p-4 border border-gray-100 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    name="aktifkan_payment_gateway"
+                    checked={config.aktifkan_payment_gateway ?? false}
+                    onChange={handleChange}
+                    className="sr-only" 
+                  />
+                  <div className={`block w-14 h-8 rounded-full transition-colors ${config.aktifkan_payment_gateway ? 'bg-sora-blue' : 'bg-gray-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${config.aktifkan_payment_gateway ? 'transform translate-x-6' : ''}`}></div>
+                </div>
+                <div>
+                  <p className="text-xs font-black text-sora-navy uppercase tracking-widest">Payment Gateway</p>
+                  <p className="text-[10px] text-sora-gray font-bold">Terima pembayaran otomatis via Midtrans</p>
+                </div>
+              </label>
+
+              <label className="flex items-center gap-4 cursor-pointer p-4 border border-gray-100 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                <div className="relative">
+                  <input 
+                    type="checkbox" 
+                    name="aktifkan_notifikasi_email"
+                    checked={config.aktifkan_notifikasi_email ?? false}
+                    onChange={handleChange}
+                    className="sr-only" 
+                  />
+                  <div className={`block w-14 h-8 rounded-full transition-colors ${config.aktifkan_notifikasi_email ? 'bg-sora-blue' : 'bg-gray-300'}`}></div>
+                  <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${config.aktifkan_notifikasi_email ? 'transform translate-x-6' : ''}`}></div>
+                </div>
+                <div>
+                  <p className="text-xs font-black text-sora-navy uppercase tracking-widest">Notifikasi Email</p>
+                  <p className="text-[10px] text-sora-gray font-bold">Kirim email tagihan & laporan otomatis</p>
+                </div>
+              </label>
             </div>
           </div>
 
@@ -156,7 +301,7 @@ export default function PengaturanSistemAdmin() {
                 <input 
                   type="checkbox" 
                   name="is_maintenance"
-                  checked={config.is_maintenance || false}
+                  checked={config.is_maintenance ?? false}
                   onChange={handleChange}
                   className="sr-only" 
                 />

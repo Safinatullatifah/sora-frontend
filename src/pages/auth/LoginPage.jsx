@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Lock, User, ArrowLeft, Eye, EyeOff, CheckCircle2, Loader2 } from 'lucide-react';
+import { LogIn, Lock, User, ArrowLeft, Eye, EyeOff, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function LoginPage({ onLogin }) {
@@ -9,12 +9,23 @@ export default function LoginPage({ onLogin }) {
   const [isForgot, setIsForgot] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [isMaintenance, setIsMaintenance] = useState(false);
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [resetEmail, setResetEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isResetLoading, setIsResetLoading] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${import.meta.env.VITE_API_URL}/system-config`)
+      .then(res => {
+        if (res.data?.data?.is_maintenance) {
+          setIsMaintenance(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +36,8 @@ export default function LoginPage({ onLogin }) {
     }
 
     setIsLoading(true);
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('studentId');
 
     try {
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/auth/login`, { 
@@ -57,8 +69,13 @@ export default function LoginPage({ onLogin }) {
       });
 
     } catch (error) {
-      const msg = error.response?.data?.message || "Login gagal! Periksa kembali email dan password.";
-      toast.error(msg);
+      if (error.response?.status === 403 && error.response?.data?.status === 'maintenance') {
+        setIsMaintenance(true);
+        toast.error(error.response?.data?.message);
+      } else {
+        const msg = error.response?.data?.message || "Login gagal! Periksa kembali email dan password.";
+        toast.error(msg);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -116,11 +133,21 @@ export default function LoginPage({ onLogin }) {
         <div className="p-8 sm:p-10 lg:p-16 flex flex-col justify-center bg-white relative overflow-hidden">
           {!isForgot ? (
             <div className="animate-in fade-in slide-in-from-right-8 duration-500 w-full max-w-md mx-auto">
-              <div className="mb-10 text-left">
+              <div className="mb-8 text-left">
                 <div className="lg:hidden w-14 h-14 bg-sora-blue rounded-xl flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg">S</div>
                 <h2 className="text-2xl sm:text-3xl font-black text-sora-navy mb-2 tracking-tight">Selamat Datang!</h2>
                 <p className="text-sora-gray font-medium text-sm">Silakan masuk untuk melanjutkan.</p>
               </div>
+
+              {isMaintenance && (
+                <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-2xl flex items-start gap-3 animate-in fade-in zoom-in duration-300">
+                  <AlertTriangle className="text-orange-500 shrink-0 mt-0.5" size={18} />
+                  <div>
+                    <h3 className="text-xs font-black text-orange-700 uppercase tracking-wide">Sistem Maintenance</h3>
+                    <p className="text-[11px] font-bold text-orange-600 mt-1">Website sedang dalam perbaikan. Akses login siswa ditutup sementara. Admin tetap dapat masuk.</p>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-5 text-left">
                 <div className="space-y-2">
