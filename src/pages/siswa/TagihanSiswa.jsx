@@ -1,22 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import axios from 'axios';
 import { useSiswa } from '../../context/SiswaContext';
-import { Layers, FileText, X, CreditCard, UploadCloud } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Layers, FileText, X, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function TagihanSiswa() {
   const { profil, tagihan, fetchTagihanData, totalNunggak } = useSiswa();
   const [kategoriAktif, setKategoriAktif] = useState('Semua');
   const [isModalPaketOpen, setIsModalPaketOpen] = useState(false);
-  const [isPaymentOptionOpen, setIsPaymentOptionOpen] = useState(false);
-  const [selectedTagihan, setSelectedTagihan] = useState(null);
-  const [isManualUpload, setIsManualUpload] = useState(false);
-  const [fileBase64, setFileBase64] = useState(null);
-  const [uploadingManual, setUploadingManual] = useState(false);
   const [loadingStruk, setLoadingStruk] = useState(false);
   const [jumlahBulan, setJumlahBulan] = useState(1);
 
@@ -33,17 +24,10 @@ export default function TagihanSiswa() {
     return tagihan.filter(t => t.kategori?.toUpperCase() === dbKat || t.kategori === kategoriAktif);
   }, [tagihan, kategoriAktif]);
 
-  const openPaymentModal = (t) => {
-    setSelectedTagihan(t);
-    setIsPaymentOptionOpen(true);
-    setIsManualUpload(false);
-    setFileBase64(null);
-  };
-
-  const handlePayMidtrans = async () => {
+  const handlePayMidtrans = async (t) => {
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/invoices/${selectedTagihan.id}/pay`, 
+        `${import.meta.env.VITE_API_URL}/invoices/${t.id}/pay`, 
         {},
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
@@ -129,34 +113,6 @@ export default function TagihanSiswa() {
     }
   };
 
-  const handleFileManualChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => setFileBase64(reader.result);
-      reader.onerror = () => toast.error("Gagal membaca file");
-    }
-  };
-
-  const submitManualPayment = async () => {
-    setUploadingManual(true);
-    try {
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/invoices/${selectedTagihan.id}/manual-pay`, 
-        { bukti_transfer_url: fileBase64 },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
-      );
-      toast.success("Berhasil", { description: "Kwitansi berhasil dikirim. Menunggu verifikasi Admin." });
-      setIsPaymentOptionOpen(false);
-      fetchTagihanData();
-    } catch (error) {
-      toast.error("Gagal mengirim kwitansi", { description: error.response?.data?.message || "Terjadi kesalahan sistem." });
-    } finally {
-      setUploadingManual(false);
-    }
-  };
-
   const handleCetakStruk = (item) => {
     if (!profil) {
       toast.error("Data siswa sedang dimuat, tunggu sebentar.");
@@ -238,7 +194,7 @@ export default function TagihanSiswa() {
                   </td>
                   <td className="p-4 md:p-6 text-center">
                     {t.status === 'Belum Bayar' ? (
-                      <button onClick={() => openPaymentModal(t)} className="w-full bg-sora-blue text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-md shadow-sora-blue/20">Bayar</button>
+                      <button onClick={() => handlePayMidtrans(t)} className="w-full bg-sora-blue text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-sora-navy transition-all shadow-md shadow-sora-blue/20">Bayar</button>
                     ) : t.status === 'Lunas' ? (
                       <button onClick={() => handleCetakStruk(t)} disabled={loadingStruk} className="w-full bg-white border border-gray-200 text-sora-navy px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-sora-blue transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"><FileText size={12}/> {loadingStruk ? 'Memproses...' : 'Struk'}</button>
                     ) : (
@@ -251,67 +207,6 @@ export default function TagihanSiswa() {
           </table>
         </div>
       </div>
-
-      <Dialog open={isPaymentOptionOpen} onOpenChange={setIsPaymentOptionOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Pilih Metode Pembayaran</DialogTitle>
-          </DialogHeader>
-
-          {!isManualUpload ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div
-                className="border border-gray-200 rounded-2xl p-6 text-center cursor-pointer hover:border-sora-blue hover:bg-blue-50 transition-all group"
-                onClick={() => {
-                  setIsPaymentOptionOpen(false);
-                  handlePayMidtrans();
-                }}
-              >
-                <div className="bg-sora-blue text-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
-                   <CreditCard />
-                </div>
-                <h4 className="font-black text-sora-navy mb-1">Otomatis</h4>
-                <p className="text-xs font-medium text-gray-500">Virtual Account, QRIS, Alfamart</p>
-              </div>
-
-              <div
-                className="border border-gray-200 rounded-2xl p-6 text-center cursor-pointer hover:border-sora-green hover:bg-green-50 transition-all group"
-                onClick={() => setIsManualUpload(true)}
-              >
-                <div className="bg-sora-green text-white w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4">
-                   <UploadCloud />
-                </div>
-                <h4 className="font-black text-sora-navy mb-1">Upload Kwitansi Cash</h4>
-                <p className="text-xs font-medium text-gray-500">Upload foto kwitansi dari tata usaha</p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4 mt-4">
-              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <p className="text-sm font-black text-sora-navy mb-2">Instruksi Upload Kwitansi:</p>
-                <ul className="text-xs font-medium text-gray-500 list-disc ml-4 space-y-1">
-                  <li>Lakukan pembayaran secara tunai langsung ke bagian Tata Usaha sekolah.</li>
-                  <li>Minta bukti kwitansi pembayaran resmi.</li>
-                  <li>Foto dan upload kwitansi tersebut di form ini.</li>
-                  <li>Total Tagihan: <strong className="text-sora-navy">Rp {selectedTagihan?.nominal?.toLocaleString('id-ID')}</strong></li>
-                </ul>
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Upload Foto Kwitansi</Label>
-                <Input type="file" accept=".jpg,.jpeg,.png,.pdf" onChange={handleFileManualChange} />
-              </div>
-
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsManualUpload(false)}>Kembali</Button>
-                <Button disabled={!fileBase64 || uploadingManual} onClick={submitManualPayment} className="bg-sora-green hover:bg-sora-green/80 text-white">
-                  {uploadingManual ? 'Mengunggah...' : 'Kirim Bukti Kwitansi'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {isModalPaketOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
